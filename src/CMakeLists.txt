@@ -9,5 +9,5 @@ message(STATUS "OpenMP version: ${OpenMP_CXX_VERSION}")
 message(STATUS "OpenMP flags: ${OpenMP_CXX_FLAGS}")
 
 target_link_libraries(my_app PUBLIC OpenMP::OpenMP_CXX)
-target_compile_options(my_app PUBLIC -fopenmp -foffload=nvptx-none -fcf-protection=none -fno-stack-protector -Wl,-z,notext --verbose)
-target_link_options(my_app PUBLIC -fopenmp -foffload=nvptx-none -fcf-protection=none -fno-stack-protector -Wl,-z,notext)
+target_compile_options(my_app PUBLIC -fopenmp -foffload=nvptx-none -fcf-protection=none -fno-stack-protector)
+target_link_options(my_app PUBLIC -fopenmp -foffload=nvptx-none -fcf-protection=none -fno-stack-protector)

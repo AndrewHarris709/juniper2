@@ -9,6 +9,7 @@ const int NUM_POINTS = 10000000000;
 const int NUM_THREADS = 24;
 
 // We need a separate random number generator that can operate on the GPU.
+#pragma omp declare target
 inline double rand(unsigned int &state)
 {
     // Basic Xorshift32 algorithm
@@ -17,11 +18,14 @@ inline double rand(unsigned int &state)
     state ^= state << 5;
     return static_cast<double>(state) / static_cast<double>(UINT_MAX);
 }
+#pragma omp end declare target
 
+#pragma omp declare target
 bool is_inside_circle(double x, double y)
 {
     return x * x + y * y <= 1.0;
 }
+#pragma omp end declare target
 
 int sample_random_points(int npoints)
 {
