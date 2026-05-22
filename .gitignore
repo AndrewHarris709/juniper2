@@ -1,0 +1,119 @@
+# CLion - ignore personal/machine-specific files
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/shelf/
+.idea/dictionaries/
+.idea/dataSources/
+.idea/*.iws
+.idea/httpRequests/
+.idea/sonarlint/
+
+# But TRACK these for team consistency:
+# .idea/modules.xml
+# .idea/misc.xml
+# .idea/vcs.xml
+# .idea/inspectionProfiles/
+# .idea/codeStyles/
+
+# CMake build directories
+build/
+builds/
+cmake-build-*/
+
+# Compiled output
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# CMake packaging
+CPack*.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+
+# Testing
+Testing/
+CTestCostData.txt
+
+# Ninja build files
+.ninja_deps
+.ninja_log
+build.ninja
+
+# Makefile build artifacts
+Makefile
+
+# Conan (C++ package manager)
+conan.lock
+conanbuildinfo.*
+conaninfo.txt
+graph_info.json
+.conan/
+
+# vcpkg
+vcpkg_installed/
+
+# Doxygen generated docs
+docs/html/
+docs/latex/
+
+# Clang tools
+.clang-tidy-cache/
+*.plist
+
+# Valgrind / profiling
+callgrind.out.*
+massif.out.*
+cachegrind.out.*
+vgcore.*
+
+# Coverage reports
+*.gcno
+*.gcda
+*.gcov
+lcov.info
+coverage/
+
+# Sanitizer logs
+*.asan
+*.tsan
+*.ubsan
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.fuse_hidden*
+.Trash-*
+
+# Editor backups
+*.swp
+*.swo
+*.bak
+*.orig
