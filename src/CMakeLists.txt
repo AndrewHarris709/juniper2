@@ -1,7 +1,8 @@
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_LINKER_TYPE LLD)
 
-add_executable(my_app main.cpp)
+add_executable(my_app main.cpp kernel.cpp)
+target_include_directories(my_app PUBLIC .)
 
 find_package(OpenMP REQUIRED)
 message(STATUS "OpenMP found: ${OpenMP_FOUND}")

@@ -4,9 +4,9 @@
 #include <thread>
 #include <omp.h>
 #include <mutex>
+#include "kernel.h"
 
-const int NUM_POINTS = 10000000000;
-const int NUM_THREADS = 24;
+const int NUM_POINTS = 1000000;
 
 // We need a separate random number generator that can operate on the GPU.
 #pragma omp declare target
@@ -27,25 +27,21 @@ bool is_inside_circle(double x, double y)
 }
 #pragma omp end declare target
 
-int sample_random_points(int npoints)
+float sample_kernel(int npoints)
 {
-    int points_inside = 0;
+    float total_area;
 
-    #pragma omp target teams distribute parallel for reduction(+:points_inside) map(to:npoints) map(tofrom:points_inside) defaultmap(none)
+    Kernel kernel = Kernel();
+
+    #pragma omp target teams distribute parallel for reduction(+:total_area) map(to:npoints) map(to:kernel) map(tofrom:total_area) defaultmap(none)
     for (int i = 0; i < npoints; i++)
     {
-        unsigned int state = (unsigned int)(i+1) * 100;
-
-        rand(state);
-        double x = rand(state);
-        double y = rand(state);
-
-        if (is_inside_circle(x, y)) {
-            points_inside++;
-        }
+        total_area += kernel.valueAt(0);
     }
 
-    return points_inside;
+    std::cout << "Sampled Value: " << total_area << std::endl;
+
+    return total_area / static_cast<float>(npoints);
 }
 
 int main()
@@ -58,14 +54,13 @@ int main()
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    int sum = sample_random_points(NUM_POINTS);
+    float sum = sample_kernel(NUM_POINTS);
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
-    double pi_estimate = 4.0 * static_cast<double>(sum) / NUM_POINTS;
-    std::cout << "Estimate for pi: " << pi_estimate << std::endl;
-    std::cout << "  Percent Error: " << 100.0 * std::abs(pi_estimate - M_PI) / M_PI << std::endl;
+    std::cout << "Expected Value : " << M_1_PI * NUM_POINTS << std::endl;
+    std::cout << "  Percent Error: " << 100.0 * std::abs(sum - (M_1_PI * NUM_POINTS)) / (M_1_PI * NUM_POINTS) << std::endl;
     std::cout << "        Runtime: " << (duration / 1e6) << " seconds." << std::endl;
 
     return 0;
