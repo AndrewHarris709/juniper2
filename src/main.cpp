@@ -5,6 +5,7 @@
 #include <omp.h>
 #include <mutex>
 #include "kernel.h"
+#include "SimData.h"
 
 const int NUM_POINTS = 1000000;
 
