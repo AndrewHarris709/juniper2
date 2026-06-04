@@ -18,7 +18,7 @@ static inline const std::vector<std::string> varCols{"fx", "fy", "fz"};
 
 SimData::SimData(const std::string& filename) {
     time = 0.0;
-    m = 0.01;
+    m = 3.0517578125e-05;
 
     if (filename.empty()) {
         return;

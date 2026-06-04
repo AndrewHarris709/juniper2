@@ -7,42 +7,58 @@
 #include "kernel.h"
 #include "SimData.h"
 
-const int NUM_POINTS = 1000000;
-
-// We need a separate random number generator that can operate on the GPU.
 #pragma omp declare target
-inline double rand(unsigned int &state)
-{
-    // Basic Xorshift32 algorithm
-    state ^= state << 13;
-    state ^= state >> 17;
-    state ^= state << 5;
-    return static_cast<double>(state) / static_cast<double>(UINT_MAX);
-}
-#pragma omp end declare target
+float distBetween(float x1, float x2, float y1, float y2, float z1, float z2) {
+    // Periodic Boundary-aware distance calculation
+    float dx = std::abs(x1 - x2);
+    float dy = std::abs(y1 - y2);
+    float dz = std::abs(z1 - z2);
 
-#pragma omp declare target
-bool is_inside_circle(double x, double y)
-{
-    return x * x + y * y <= 1.0;
-}
-#pragma omp end declare target
+    float temp_bounds[6]{0, 1, 0, 1, 0, 1};
 
-float sample_kernel(int npoints)
-{
-    float total_area;
-
-    Kernel kernel = Kernel();
-
-    #pragma omp target teams distribute parallel for reduction(+:total_area) map(to:npoints) map(to:kernel) map(tofrom:total_area) defaultmap(none)
-    for (int i = 0; i < npoints; i++)
-    {
-        total_area += kernel.valueAt(0);
+    if (dx > (temp_bounds[1] - temp_bounds[0]) / 2) {
+        dx = (temp_bounds[1] - temp_bounds[0]) - dx;
+    }
+    if (dy > (temp_bounds[3] - temp_bounds[2]) / 2) {
+        dy = (temp_bounds[3] - temp_bounds[2]) - dy;
+    }
+    if (dz > (temp_bounds[5] - temp_bounds[4]) / 2) {
+        dz = (temp_bounds[5] - temp_bounds[4]) - dz;
     }
 
-    std::cout << "Sampled Value: " << total_area << std::endl;
+    if (x1 > x2)
+        dx *= -1;
+    if (y1 > y2)
+        dy *= -1;
+    if (z1 > z2)
+        dz *= -1;
 
-    return total_area / static_cast<float>(npoints);
+    return sqrtf(dx * dx + dy * dy + dz * dz);
+}
+#pragma omp end declare target
+
+float densityAt(SimData& simData, int part) {
+    float density = 0.0;
+    Kernel kernel = Kernel();
+    int pCount = simData.getParticleCount();
+
+    // You cannot offload parts of an unsafe class, even if those parameters are safe by themselves.
+    float  m     = simData.m;
+    float* xyzh  = simData.xyzh;
+    int    count = pCount;
+
+    #pragma omp target teams distribute parallel for reduction(+:density) map(to: m) map(to: xyzh[0:pCount*4]) map(to:pCount) map(to:kernel) map(to:part) map(tofrom:density) defaultmap(none)
+    for (int i = 0; i < pCount; i++) {
+        float dist = distBetween(
+            xyzh[4 * i], xyzh[4 * part],
+            xyzh[4 * i + 1], xyzh[4 * part + 1],
+            xyzh[4 * i + 2], xyzh[4 * part + 2]);
+
+        float tarH = xyzh[4 * part+3];
+        density += kernel.valueAt(dist / tarH) * m;
+    }
+
+    return density;
 }
 
 int main()
@@ -53,16 +69,24 @@ int main()
         std::cerr << "No GPU device found — offloading will fall back to host." << std::endl;
     }
 
+    std::cout << "Loading Data" << std::endl;
+
+    SimData simData = SimData(".//test.csv");
+
+    std::cout << "Data Loaded, starting density calculation." << std::endl;
+
     auto start = std::chrono::high_resolution_clock::now();
 
-    float sum = sample_kernel(NUM_POINTS);
+    float sum = densityAt(simData, 35);
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
-    std::cout << "Expected Value : " << M_1_PI * NUM_POINTS << std::endl;
-    std::cout << "  Percent Error: " << 100.0 * std::abs(sum - (M_1_PI * NUM_POINTS)) / (M_1_PI * NUM_POINTS) << std::endl;
-    std::cout << "        Runtime: " << (duration / 1e6) << " seconds." << std::endl;
+    float expected = 5.27347e-05;
+    std::cout << "Density Calculated: " << sum << std::endl;
+    std::cout << "Expected Value    : " << expected << std::endl;
+    std::cout << "  Percent Error   : " << 100.0 * std::abs(sum - expected) / expected << std::endl;
+    std::cout << "        Runtime   : " << (duration / 1e6) << " seconds." << std::endl;
 
     return 0;
 }
