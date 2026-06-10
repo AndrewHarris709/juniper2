@@ -47,7 +47,14 @@ float densityAt(SimData& simData, int part) {
     float* xyzh  = simData.xyzh;
     int    count = pCount;
 
-    #pragma omp target teams distribute parallel for reduction(+:density) map(to: m) map(to: xyzh[0:pCount*4]) map(to:pCount) map(to:kernel) map(to:part) map(tofrom:density) defaultmap(none)
+    // On OpenMP 5.0+: #pragma omp target teams distribute parallel for reduction(+:density) map(to: m) map(to:pCount) map(to:kernel) map(to:part) map(tofrom:density) map(present: xyzh[0:pcount*4]) defaultmap(none)
+
+    #pragma omp target enter data map(to: xyzh[0:pCount*4])
+    #pragma omp target teams distribute parallel for reduction(+:density) \
+                                                     map(to: m, pCount, kernel, part) \
+                                                     map(tofrom:density) \
+                                                     map(present: xyzh[0:pcount*4]) \
+                                                     defaultmap(firstprivate)
     for (int i = 0; i < pCount; i++) {
         float dist = distBetween(
             xyzh[4 * i], xyzh[4 * part],
@@ -57,6 +64,7 @@ float densityAt(SimData& simData, int part) {
         float tarH = xyzh[4 * part+3];
         density += kernel.valueAt(dist / tarH) * m;
     }
+    #pragma omp target exit data map(from: xyzh[0:pCount*4])
 
     return density;
 }
