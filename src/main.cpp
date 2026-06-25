@@ -6,6 +6,7 @@
 #include <mutex>
 #include "kernel.h"
 #include "SimData.h"
+#include "Tree.h"
 
 #pragma omp declare target
 float distBetween(float x1, float x2, float y1, float y2, float z1, float z2) {
@@ -52,9 +53,7 @@ float densityAt(SimData& simData, int part) {
     #pragma omp target enter data map(to: xyzh[0:pCount*4])
     #pragma omp target teams distribute parallel for reduction(+:density) \
                                                      map(to: m, pCount, kernel, part) \
-                                                     map(tofrom:density) \
-                                                     map(present: xyzh[0:pcount*4]) \
-                                                     defaultmap(firstprivate)
+                                                     map(tofrom:density)
     for (int i = 0; i < pCount; i++) {
         float dist = distBetween(
             xyzh[4 * i], xyzh[4 * part],
@@ -81,7 +80,11 @@ int main()
 
     SimData simData = SimData(".//test.csv");
 
-    std::cout << "Data Loaded, starting density calculation." << std::endl;
+    std::cout << "Building Tree" << std::endl;
+
+    Tree* tree = new Tree(simData.getParticleCount());
+    tree->build(simData);
+    std::cout << "Tree built with " << tree->getNodeCount() << " nodes, starting density calculation." << std::endl;
 
     auto start = std::chrono::high_resolution_clock::now();
 
