@@ -38,7 +38,7 @@ float distBetween(float x1, float x2, float y1, float y2, float z1, float z2) {
 }
 #pragma omp end declare target
 
-float densityAt(SimData& simData, int part) {
+float densityAt(SimData& simData, Tree& tree, int part) {
     float density = 0.0;
     Kernel kernel = Kernel();
     int pCount = simData.getParticleCount();
@@ -47,14 +47,18 @@ float densityAt(SimData& simData, int part) {
     float  m     = simData.m;
     float* xyzh  = simData.xyzh;
     int    count = pCount;
+    TreeData& treeData = *tree.data;
 
     // On OpenMP 5.0+: #pragma omp target teams distribute parallel for reduction(+:density) map(to: m) map(to:pCount) map(to:kernel) map(to:part) map(tofrom:density) map(present: xyzh[0:pcount*4]) defaultmap(none)
 
     #pragma omp target enter data map(to: xyzh[0:pCount*4])
     #pragma omp target teams distribute parallel for reduction(+:density) \
                                                      map(to: m, pCount, kernel, part) \
-                                                     map(tofrom:density)
+                                                     map(tofrom:density) \
+                                                     TREE_DATA_MAP(treeData)
     for (int i = 0; i < pCount; i++) {
+        treeData.mapping[i] = 0;
+
         float dist = distBetween(
             xyzh[4 * i], xyzh[4 * part],
             xyzh[4 * i + 1], xyzh[4 * part + 1],
@@ -88,7 +92,7 @@ int main()
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    float sum = densityAt(simData, 35);
+    float sum = densityAt(simData, *tree, 35);
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();

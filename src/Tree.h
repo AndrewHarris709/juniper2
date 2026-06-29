@@ -9,6 +9,10 @@
 
 #include "SimData.h"
 
+#define TREE_DATA_MAP(td) \
+map(to: (td).contents[0:(td).nodeCount]) \
+map(to: (td).mapping[0:(td).partCount])
+
 struct TreeNode {
     float x;
     float y;
@@ -22,27 +26,34 @@ struct TreeNode {
     int parent;
 };
 
-class Tree {
-    TreeNode* contents;
-    int* mapping;
+struct TreeData {
+    TreeNode* contents = nullptr;
+    int* mapping = nullptr;
     int nodeCount = 0;
     int partCount = 0;
+};
+
+class Tree {
 
     int registerNodeFromIndices(SimData& data, int index, int size);
+
 public:
-    explicit Tree(int count) {
-        contents = new TreeNode[2 * count];
-        mapping = new int[count];
+    TreeData* data;
+
+    explicit Tree(const int count) {
+        data = new TreeData();
+        data->contents = new TreeNode[2 * count];
+        data->mapping = new int[count];
 
         for (int i = 0; i < count; i++) {
-            mapping[i] = i;
+            data->mapping[i] = i;
         }
-        this->partCount = count;
+        data->partCount = count;
     }
 
     ~Tree() {
-        delete[] contents;
-        delete[] mapping;
+        delete[] data->contents;
+        delete[] data->mapping;
     }
 
     TreeNode* getNode(int index);

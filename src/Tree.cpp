@@ -28,29 +28,29 @@ int Tree::getParent(int index) {
 }
 
 int Tree::getParticleCount() {
-    return this->partCount;
+    return this->data->partCount;
 }
 
 int Tree::getNodeCount() {
-    return this->nodeCount;
+    return this->data->nodeCount;
 }
 
 TreeNode* Tree::getNode(int index) {
-    return &this->contents[index];
+    return &this->data->contents[index];
 }
 
 std::span<int> Tree::getNodeIndices(int index) {
     TreeNode *node = getNode(index);
     int mappingStart = node->mappingStart, mappingSize = node->mappingSize;
 
-    std::span<int> indices(this->mapping + mappingStart, this->mapping + mappingStart + mappingSize);
+    std::span<int> indices(this->data->mapping + mappingStart, this->data->mapping + mappingStart + mappingSize);
     return indices;
 }
 
 void Tree::build(SimData& data) {
     std::stack<int> stack;
     stack.push(0);
-    registerNodeFromIndices(data, 0, this->partCount);
+    registerNodeFromIndices(data, 0, this->data->partCount);
 
     while (!stack.empty()) {
         int newIndex = stack.top();
@@ -93,37 +93,37 @@ void Tree::splitLeaf(SimData& data, int index) {
     std::vector<int> oldIndices(indices.begin(), indices.end());
     for (int i : oldIndices) {
         if (data.xyzh[4 * i + decomposeAxis] > centre) {
-            mapping[thisNode->mappingStart + frontInsert] = i;
+            this->data->mapping[thisNode->mappingStart + frontInsert] = i;
             frontInsert++;
         } else {
-            mapping[thisNode->mappingStart + backInsert] = i;
+            this->data->mapping[thisNode->mappingStart + backInsert] = i;
             backInsert--;
         }
     }
 
     int leftIndex = registerNodeFromIndices(data, thisNode->mappingStart, frontInsert);
-    contents[leftIndex].parent = index;
+    this->data->contents[leftIndex].parent = index;
     int rightIndex = registerNodeFromIndices(data, thisNode->mappingStart + frontInsert, indices.size() - frontInsert);
-    contents[rightIndex].parent = index;
+    this->data->contents[rightIndex].parent = index;
 
     thisNode->leftChild = leftIndex;
     thisNode->rightChild = rightIndex;
 }
 
 int Tree::registerNodeFromIndices(SimData& data, int index, int size) {
-    TreeNode* node = getNode(nodeCount);
+    TreeNode* node = getNode(this->getNodeCount());
 
     node->mappingStart = index;
     node->mappingSize = size;
 
-    Point3f centreOfMass = PartOps::getCentreOfMass(data, *this, nodeCount);
+    Point3f centreOfMass = PartOps::getCentreOfMass(data, *this, this->getNodeCount());
     node->x = centreOfMass.x;
     node->y = centreOfMass.y;
     node->z = centreOfMass.z;
 
-    node->size = PartOps::getBoundingRadius(data, *this, nodeCount);
-    node->hmax = PartOps::getMaxSmoothingLength(data, *this, nodeCount);
+    node->size = PartOps::getBoundingRadius(data, *this, this->getNodeCount());
+    node->hmax = PartOps::getMaxSmoothingLength(data, *this, this->getNodeCount());
 
-    nodeCount++;
-    return nodeCount - 1;
+    this->data->nodeCount++;
+    return this->data->nodeCount - 1;
 }
