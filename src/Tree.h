@@ -7,11 +7,7 @@
 
 #include <span>
 
-#include "SimData.h"
-
-#define TREE_DATA_MAP(td) \
-map(to: (td).contents[0:(td).nodeCount]) \
-map(to: (td).mapping[0:(td).partCount])
+class SimData; // forward declare to avoid circular imports with SimData.h
 
 struct TreeNode {
     float x;
@@ -31,6 +27,11 @@ struct TreeData {
     int* mapping = nullptr;
     int nodeCount = 0;
     int partCount = 0;
+};
+
+struct NodeRange {
+    int* data;
+    int size;
 };
 
 class Tree {
@@ -56,16 +57,19 @@ public:
         delete[] data->mapping;
     }
 
-    TreeNode* getNode(int index);
-    int getParent(int index);
-    int getLeftChild(int index);
-    int getRightChild(int index);
-    bool isLeaf(int index);
-    void splitLeaf(SimData& data, int index);
+    TreeNode* getNode(int nodeIndex);
+    int getParent(int nodeIndex);
+    int getLeftChild(int nodeIndex);
+    int getRightChild(int nodeIndex);
+    bool isLeaf(int nodeIndex);
+    void splitLeaf(SimData& data, int nodeIndex);
+    float distBetweenNodes(int nodeIndex1, int nodeIndex2);
     int getParticleCount();
     int getNodeCount();
-    std::span<int> getNodeIndices(int index);
+
+    NodeRange getPartsFromNode(int nodeIndex);
     void build(SimData& data);
+    void densityIterate(SimData& data);
 };
 
 #endif //JUNIPEREXE_TREENODE_H

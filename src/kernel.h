@@ -1,6 +1,6 @@
 #pragma once
 
-#pragma omp declare target
+//#pragma omp declare target
 class Kernel
 {
     public:
@@ -9,4 +9,4 @@ class Kernel
         float dWdhAt(const float) const;
         float getRadius() const;
 };
-#pragma omp end declare target
+//#pragma omp end declare target

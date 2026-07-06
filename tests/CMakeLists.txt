@@ -16,5 +16,10 @@ target_link_libraries(IOTest
 )
 add_test(NAME IO_Tests COMMAND IOTest)
 
+add_executable(DensityTest test_density.cpp)
+target_link_libraries(DensityTest PRIVATE GTest::gtest_main JuniperSRC)
+add_test(NAME Density_Tests COMMAND DensityTest)
+
 include(GoogleTest)
 gtest_discover_tests(IOTest)
+gtest_discover_tests(DensityTest)

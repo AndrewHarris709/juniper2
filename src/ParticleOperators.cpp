@@ -4,7 +4,6 @@
 
 #ifndef JUNIPER2_TREEOPERATORS_H
 #define JUNIPER2_TREEOPERATORS_H
-#include <numeric>
 #include <cmath>
 
 #include "commons.h"
@@ -12,16 +11,16 @@
 #include "Tree.h"
 
 namespace PartOps {
-    Point3f getCentreOfMass(SimData& data, Tree& tree, int index) {
-        Point3f centreOfMass(0, 0, 0);
-        std::span<int> contents = tree.getNodeIndices(index);
+    junipermath::Point3f getCentreOfMass(SimData& data, Tree& tree, int index) {
+        junipermath::Point3f centreOfMass(0, 0, 0);
+        NodeRange contents = tree.getPartsFromNode(index);
 
-        int partCount = 0;
-        for (const int i : contents) {
-            centreOfMass.x += data.xyzh[4 * i];
-            centreOfMass.y += data.xyzh[4 * i + 1];
-            centreOfMass.z += data.xyzh[4 * i + 2];
-            partCount++;
+        int partCount;
+        for (partCount = 0; partCount < contents.size; partCount++) {
+            int partIndex = contents.data[partCount];
+            centreOfMass.x += data.x(partIndex);
+            centreOfMass.y += data.y(partIndex);
+            centreOfMass.z += data.z(partIndex);
         }
 
         centreOfMass.x /= partCount;
@@ -31,16 +30,18 @@ namespace PartOps {
         return centreOfMass;
     }
 
-    Box3f getBoundingBox(SimData& data, Tree& tree, int index) {
-        std::span<int> contents = tree.getNodeIndices(index);
-        int fi = contents[0];
+    junipermath::Box3f getBoundingBox(SimData& data, Tree& tree, int index) {
+        NodeRange contents = tree.getPartsFromNode(index);
+        int fi = contents.data[0];
 
-        Box3f box(data.xyzh[4 * fi], data.xyzh[4 * fi + 1], data.xyzh[4 * fi + 2],
-                 data.xyzh[4 * fi], data.xyzh[4 * fi + 1], data.xyzh[4 * fi + 2]);
-        for (int i : contents) {
-            float x = data.xyzh[4 * i];
-            float y = data.xyzh[4 * i + 1];
-            float z = data.xyzh[4 * i + 2];
+        junipermath::Box3f box(data.x(fi), data.y(fi), data.z(fi),
+                              data.x(fi), data.y(fi), data.z(fi));
+        for (int i = 0; i < contents.size; i++) {
+            int p = contents.data[i];
+
+            float x = data.x(p);
+            float y = data.y(p);
+            float z = data.z(p);
 
             if (x < box.x1) box.x1 = x;
             if (y < box.y1) box.y1 = y;
@@ -54,14 +55,15 @@ namespace PartOps {
     }
 
     float getBoundingRadius(SimData& data, Tree& tree, int index) {
-        std::span<int> contents = tree.getNodeIndices(index);
-        Point3f centre = getCentreOfMass(data, tree, index);
+        NodeRange contents = tree.getPartsFromNode(index);
+        junipermath::Point3f centre = getCentreOfMass(data, tree, index);
         float boundingRadius = 0;
 
-        for (int i : contents) {
-            float x = data.xyzh[4 * i];
-            float y = data.xyzh[4 * i + 1];
-            float z = data.xyzh[4 * i + 2];
+        for (int i = 0; i < contents.size; i++) {
+            int p = contents.data[i];
+            float x = data.x(p);
+            float y = data.y(p);
+            float z = data.z(p);
             float centreDist = std::sqrt(((centre.x - x) * (centre.x - x) +
                                 (centre.y - y) * (centre.y - y) +
                                 (centre.z - z) * (centre.z - z)));
@@ -73,12 +75,13 @@ namespace PartOps {
     }
 
     float getMaxSmoothingLength(SimData& data, Tree& tree, int index) {
-        std::span<int> contents = tree.getNodeIndices(index);
+        NodeRange contents = tree.getPartsFromNode(index);
         float maxSmoothingLength = 0;
 
-        for (int i: contents) {
-            if (data.xyzh[4 * i + 3] > maxSmoothingLength) {
-                maxSmoothingLength = data.xyzh[4 * i + 3];
+        for (int i = 0; i < contents.size; i++) {
+            int p = contents.data[i];
+            if (data.h(p) > maxSmoothingLength) {
+                maxSmoothingLength = data.h(i);
             }
         }
 
@@ -86,4 +89,4 @@ namespace PartOps {
     }
 }
 
-#endif JUNIPER2_TREEOPERATORS_H
+#endif // JUNIPER2_TREEOPERATORS_H

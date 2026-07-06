@@ -4,27 +4,26 @@
 
 #include <vector>
 #include <iostream>
-#include "Tree.h"
-
 #include <stack>
 
 #include "commons.h"
 #include "ParticleOperators.cpp"
+#include "Tree.h"
 
-int Tree::getLeftChild(int index) {
-    return this->getNode(index)->leftChild;
+int Tree::getLeftChild(int nodeIndex) {
+    return this->getNode(nodeIndex)->leftChild;
 }
 
-int Tree::getRightChild(int index) {
-    return this->getNode(index)->rightChild;
+int Tree::getRightChild(int nodeIndex) {
+    return this->getNode(nodeIndex)->rightChild;
 }
 
 bool Tree::isLeaf(int index) {
     return this->getNode(index)->leftChild == -1;
 }
 
-int Tree::getParent(int index) {
-    return this->getNode(index)->parent;
+int Tree::getParent(int nodeIndex) {
+    return this->getNode(nodeIndex)->parent;
 }
 
 int Tree::getParticleCount() {
@@ -35,16 +34,25 @@ int Tree::getNodeCount() {
     return this->data->nodeCount;
 }
 
-TreeNode* Tree::getNode(int index) {
-    return &this->data->contents[index];
+TreeNode* Tree::getNode(int nodeIndex) {
+    return &this->data->contents[nodeIndex];
 }
 
-std::span<int> Tree::getNodeIndices(int index) {
-    TreeNode *node = getNode(index);
-    int mappingStart = node->mappingStart, mappingSize = node->mappingSize;
+float Tree::distBetweenNodes(int nodeIndex1, int nodeIndex2) {
+    TreeNode* node1 = this->getNode(nodeIndex1);
+    TreeNode* node2 = this->getNode(nodeIndex2);
 
-    std::span<int> indices(this->data->mapping + mappingStart, this->data->mapping + mappingStart + mappingSize);
-    return indices;
+    return junipermath::distBetween(node1->x, node2->x, node1->y, node2->y, node1->z, node2->z);
+}
+
+NodeRange Tree::getPartsFromNode(int nodeIndex) {
+    TreeNode *node = getNode(nodeIndex);
+
+    NodeRange range;
+    range.data = this->data->mapping + node->mappingStart;
+    range.size = node->mappingSize;
+
+    return range;
 }
 
 void Tree::build(SimData& data) {
@@ -60,25 +68,23 @@ void Tree::build(SimData& data) {
             this->splitLeaf(data, newIndex);
             stack.push(node->leftChild);
             stack.push(node->rightChild);
-            std::cout << "Node " << newIndex << " separated into subnodes " << node->leftChild << " and " << node->rightChild << std::endl;
-            std::cout << node->mappingSize << " particles separated into groups of " << getNode(node->leftChild)->mappingSize << " and " << getNode(node->rightChild)->mappingSize << std::endl;
         }
     }
 }
 
-void Tree::splitLeaf(SimData& data, int index) {
-    if (!this->isLeaf(index)) {
+void Tree::splitLeaf(SimData& data, int nodeIndex) {
+    if (!this->isLeaf(nodeIndex)) {
         std::cout << "Warning: attempted splitLeaf() on a non-leaf node!" << std::endl;
         return;
     }
 
-    std::span<int> indices = this->getNodeIndices(index);
-    Box3f box = PartOps::getBoundingBox(data, *this, index);
+    NodeRange indices = this->getPartsFromNode(nodeIndex);
+    junipermath::Box3f box = PartOps::getBoundingBox(data, *this, nodeIndex);
     float xdiff = box.x2 - box.x1;
     float ydiff = box.y2 - box.y1;
     float zdiff = box.z2 - box.z1;
 
-    TreeNode* thisNode = getNode(index);
+    TreeNode* thisNode = getNode(nodeIndex);
     float centre = thisNode->x;
     int decomposeAxis = 0;
     if (ydiff >= xdiff && ydiff >= zdiff) {
@@ -89,8 +95,8 @@ void Tree::splitLeaf(SimData& data, int index) {
         centre = thisNode->z;
     }
 
-    int frontInsert = 0, backInsert = indices.size() - 1;
-    std::vector<int> oldIndices(indices.begin(), indices.end());
+    int frontInsert = 0, backInsert = indices.size - 1;
+    std::vector<int> oldIndices(indices.data, indices.data + indices.size);
     for (int i : oldIndices) {
         if (data.xyzh[4 * i + decomposeAxis] > centre) {
             this->data->mapping[thisNode->mappingStart + frontInsert] = i;
@@ -102,9 +108,9 @@ void Tree::splitLeaf(SimData& data, int index) {
     }
 
     int leftIndex = registerNodeFromIndices(data, thisNode->mappingStart, frontInsert);
-    this->data->contents[leftIndex].parent = index;
-    int rightIndex = registerNodeFromIndices(data, thisNode->mappingStart + frontInsert, indices.size() - frontInsert);
-    this->data->contents[rightIndex].parent = index;
+    this->data->contents[leftIndex].parent = nodeIndex;
+    int rightIndex = registerNodeFromIndices(data, thisNode->mappingStart + frontInsert, indices.size - frontInsert);
+    this->data->contents[rightIndex].parent = nodeIndex;
 
     thisNode->leftChild = leftIndex;
     thisNode->rightChild = rightIndex;
@@ -116,7 +122,7 @@ int Tree::registerNodeFromIndices(SimData& data, int index, int size) {
     node->mappingStart = index;
     node->mappingSize = size;
 
-    Point3f centreOfMass = PartOps::getCentreOfMass(data, *this, this->getNodeCount());
+    junipermath::Point3f centreOfMass = PartOps::getCentreOfMass(data, *this, this->getNodeCount());
     node->x = centreOfMass.x;
     node->y = centreOfMass.y;
     node->z = centreOfMass.z;
