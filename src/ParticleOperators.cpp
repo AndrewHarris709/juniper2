@@ -2,8 +2,6 @@
 // Created by Andrew on 2025-09-12.
 //
 
-#ifndef JUNIPER2_TREEOPERATORS_H
-#define JUNIPER2_TREEOPERATORS_H
 #include <cmath>
 
 #include "commons.h"
@@ -88,5 +86,3 @@ namespace PartOps {
         return maxSmoothingLength;
     }
 }
-
-#endif // JUNIPER2_TREEOPERATORS_H

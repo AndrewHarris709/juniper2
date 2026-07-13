@@ -15,6 +15,7 @@ int main()
     std::cout << "Loading Data" << std::endl;
 
     SimData simData = SimData(".//test.csv");
+    simData.m = 3.0517578125e-05;
 
     auto start = std::chrono::high_resolution_clock::now();
 

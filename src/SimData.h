@@ -11,9 +11,6 @@
 
 
 class SimData {
-    float densityIterateAtParticle(SimData& simData, Tree& tree, int partIndex, int nodeIndex);
-    bool atEndCondition(float newH, float oldH, float origH);
-    float distBetween(int part1, int part2);
 
 public:
     explicit SimData(const std::string& filename);

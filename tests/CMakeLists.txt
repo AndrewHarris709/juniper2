@@ -20,6 +20,10 @@ add_executable(DensityTest test_density.cpp)
 target_link_libraries(DensityTest PRIVATE GTest::gtest_main JuniperSRC)
 add_test(NAME Density_Tests COMMAND DensityTest)
 
+add_executable(NeighbourTest test_neighbours.cpp)
+target_link_libraries(NeighbourTest PRIVATE GTest::gtest_main GTest::gmock_main JuniperSRC)
+add_test(NAME Neighbour_Tests COMMAND NeighbourTest)
+
 include(GoogleTest)
 gtest_discover_tests(IOTest)
 gtest_discover_tests(DensityTest)
