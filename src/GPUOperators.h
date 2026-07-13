@@ -8,8 +8,10 @@
 
 #include "Tree.h"
 
+#pragma omp declare target
 namespace GPU {
     constexpr float NORM = 1 / M_PI;
+
 
     float valueAt(float q);
     float gradientAt(float q);
@@ -18,9 +20,10 @@ namespace GPU {
     float distBetween(float x1, float x2, float y1, float y2, float z1, float z2);
     float distBetweenNodes(TreeNode* treeContents, int nodeIndex1, int nodeIndex2);
     bool atEndCondition(float newH, float oldH, float origH);
-    bool* getNeighbours(TreeNode* treeContents, int* treeMapping, int nodeCounts, int partCount, int nodeIndex, float partMax);
-    float densityIterateAtParticle(float* xyzh, TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int partIndex, int nodeIndex, float m);
+    bool* getNeighbours(TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int nodeIndex, float partMax, bool* neighbourScratch, int* stackScratch);
+    float densityIterateAtParticle(float* xyzh, TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int partIndex, int nodeIndex, float m, bool* neighbourScratch, int* stackScratch);
 
 }
+#pragma omp end declare target
 
 #endif //GPUOPERATORS_H

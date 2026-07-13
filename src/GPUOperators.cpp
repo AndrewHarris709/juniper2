@@ -1,12 +1,14 @@
 #include <cmath>
 #include <iostream>
+#include <omp.h>
 
 #include "kernel.h"
 #include "Tree.h"
 
-//#pragma declare target start
+#pragma omp declare target
 namespace GPU {
     constexpr float NORM = 1 / M_PI;
+    constexpr int THREAD_LIMIT = 1024;
 
     float valueAt(const float q)
     {
@@ -96,55 +98,50 @@ namespace GPU {
     }
 
     bool atEndCondition(float newH, float oldH, float origH) {
-        return std::abs(newH - oldH) / origH <= 10e-4;
+        return std::abs(newH - oldH) / origH <= 1e-4;
     }
 
-    bool* getNeighbours(TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int nodeIndex, float partMax) {
-        bool* isNeighbour = new bool[partCount]();
+    void getNeighbours(TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int nodeIndex, int partIndex, float partMax, bool* neighbourScratch, int* stackScratch) {
+        for (int i = 0; i < partCount; i++) {
+            neighbourScratch[omp_get_thread_num() * partCount + i] = false;
+        }
 
-        int* nodeStack = new int[nodeCount];
         int stackSize = 0;
 
-        nodeStack[stackSize++] = 0;
+        stackScratch[omp_get_thread_num() * nodeCount + (stackSize++)] = 0;
         TreeNode* targetNode = &treeContents[nodeIndex];
 
-        auto *kernel = new Kernel();
-
         while (stackSize > 0) {
-            int nextNodeIndex = nodeStack[--stackSize];
+            int nextNodeIndex = stackScratch[omp_get_thread_num() * nodeCount + (--stackSize)];
             TreeNode* nextNode = &treeContents[nextNodeIndex];
 
             float distance = distBetweenNodes(treeContents, nextNodeIndex, nodeIndex);
-            float targetBounds = nextNode->size + targetNode->size + (kernel->getRadius() * std::max(targetNode->hmax, partMax));
+            float targetBounds = nextNode->size + targetNode->size + (2 * std::max(targetNode->hmax, partMax));
 
             if (distance * distance < targetBounds * targetBounds) {
                 if (nextNode->leftChild == -1) {
                     NodeRange nodeContents = getPartsFromNode(treeContents, treeMapping, nextNodeIndex);
                     for (int i = 0; i < nodeContents.size; i++) {
-                        int partIndex = nodeContents.data[i];
-                        isNeighbour[partIndex] = true;
+                        int realIndex = nodeContents.data[i];
+                        neighbourScratch[omp_get_thread_num() * partCount + realIndex] = true;
                     }
                 } else {
-                    nodeStack[stackSize++] = nextNode->leftChild;
-                    nodeStack[stackSize++] = nextNode->rightChild;
+                    stackScratch[omp_get_thread_num() * nodeCount + (stackSize++)] = nextNode->leftChild;
+                    stackScratch[omp_get_thread_num() * nodeCount + (stackSize++)] = nextNode->rightChild;
                 }
             }
         }
-
-        return isNeighbour;
     }
 
-    float densityIterateAtParticle(float* xyzh, TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int partIndex, int nodeIndex, float m) {
+    float densityIterateAtParticle(float* xyzh, TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int partIndex, int nodeIndex, float m, bool* neighbourScratch, int* stackScratch) {
         int partA = partIndex;
         float oldH = std::numeric_limits<float>::max();
         float newH = xyzh[partA * 4 + 3];
         float origH = newH;
         int iterationCount = 0;
 
-        bool* isPartANeighbour = new bool[partCount];
-
         while (!atEndCondition(newH, oldH, origH)) {
-            isPartANeighbour = getNeighbours(treeContents, treeMapping, nodeCount, partCount, nodeIndex, newH);
+            getNeighbours(treeContents, treeMapping, nodeCount, partCount, nodeIndex, partIndex, newH, neighbourScratch, stackScratch);
 
             float density = m * std::pow(1.2 / newH, 3);
             float grad = -newH / (3 * density);
@@ -154,7 +151,7 @@ namespace GPU {
             for (int i = 0; i < partCount; i++) {
                 int partB = treeMapping[i];
 
-                if (!isPartANeighbour[partB]) {
+                if (!neighbourScratch[omp_get_thread_num() * partCount + partB]) {
                     continue;
                 }
 
@@ -180,12 +177,8 @@ namespace GPU {
             }
         }
 
-        delete isPartANeighbour;
-
         return newH;
     }
 
-
 }
-
-//#pragma declare target end
+#pragma omp end declare target

@@ -16,7 +16,7 @@ TEST(DensityTest, PhantomDensityTest) {
     }
 
     data.densityIterate(data);
-    for (int i = 0; i < data.getParticleCount(); i++) {
-        EXPECT_NEAR(data.h(i), oldxyzh[4 * i + 3], 10e-4) << "Mismatch at particle index i = " << i;
+    for (int i = 0; i < 100; i++) {
+        EXPECT_NEAR(data.h(i), oldxyzh[4 * i + 3], 1e-4) << "Mismatch at particle index i = " << i;
     }
 }

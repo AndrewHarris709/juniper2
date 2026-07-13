@@ -11,7 +11,7 @@ message(STATUS "OpenMP version: ${OpenMP_CXX_VERSION}")
 message(STATUS "OpenMP flags: ${OpenMP_CXX_FLAGS}")
 
 target_link_libraries(JuniperSRC PUBLIC OpenMP::OpenMP_CXX)
-target_compile_options(JuniperSRC PUBLIC -fopenmp -foffload=nvptx-none -fno-fast-math -fno-associative-math -fcf-protection=none -fno-stack-protector -foffload-options=nvptx-none="-lm")
-target_link_options(JuniperSRC PUBLIC -fopenmp -foffload=nvptx-none -fno-fast-math -fno-associative-math -fcf-protection=none -fno-stack-protector -foffload-options=nvptx-none="-lm")
+target_compile_options(JuniperSRC PUBLIC -fopenmp -foffload=nvptx-none -fno-fast-math -ffp-contract=off -fno-associative-math -fcf-protection=none -fno-stack-protector -foffload-options=nvptx-none="-lm")
+target_link_options(JuniperSRC PUBLIC -fopenmp -foffload=nvptx-none -fno-fast-math -ffp-contract=off -fno-associative-math -fcf-protection=none -fno-stack-protector -foffload-options=nvptx-none="-lm")
 
 target_include_directories(JuniperSRC PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
