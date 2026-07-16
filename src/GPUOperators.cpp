@@ -8,7 +8,6 @@
 #pragma omp declare target
 namespace GPU {
     constexpr float NORM = 1 / M_PI;
-    constexpr int THREAD_LIMIT = 1024;
 
     float valueAt(const float q)
     {

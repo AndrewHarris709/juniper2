@@ -23,11 +23,7 @@ TEST(IOTest, BasicReaderTest) {
 TEST(IOTest, BasicWriterTest) {
     SimData simData = SimData(".//tests//files//test.csv");
     simData.toCSV(".//tests//files//temp_writing_test.csv");
-    try {
-        SimData writtenSim = SimData(".//tests//files//temp_writing_test.csv");
-    } catch (const std::bad_alloc&) {
-        FAIL() << "bad_alloc caught — last successful line was X";
-    }
+    SimData writtenSim = SimData(".//tests//files//temp_writing_test.csv");
 
     try {
         std::filesystem::remove(".//tests//files//temp_writing_test.csv");
@@ -35,6 +31,6 @@ TEST(IOTest, BasicWriterTest) {
         std::cout << "Error deleting temporary file!: " << err.what() << "\n";
     }
 
-    //assertTestSim(writtenSim);
+    assertTestSim(writtenSim);
 }
 

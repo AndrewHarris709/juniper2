@@ -23,6 +23,7 @@ TEST(NeighbourTest, TreeBuildTest) {
 
 TEST(NeighbourTest, NeighbourFindTest) {
     SimData data = SimData(".//tests//files//kd_test.csv");
+    data.m = 0.01;
     Tree* tree = new Tree(data.getParticleCount());
     tree->build(data);
 
@@ -42,11 +43,14 @@ TEST(NeighbourTest, NeighbourFindTest) {
         }
     }
 
-    bool* neighbours = GPU::getNeighbours(tree->data->contents, tree->data->mapping, tree->getNodeCount(), tree->getParticleCount(), nodeIndex, data.h(208));
+    bool* neighbourScratch = new bool[tree->getParticleCount()];
+    int *stackScratch = new int[tree->getNodeCount()];
+
+    GPU::getNeighbours(tree->data->contents, tree->data->mapping, tree->getNodeCount(), tree->getParticleCount(), nodeIndex, 208, data.h(208), neighbourScratch, stackScratch);
 
     std::vector<int> neighbourList = {};
     for (int i = 0; i < tree->getParticleCount(); i++) {
-        if (neighbours[i]) {
+        if (neighbourScratch[i]) {
             neighbourList.push_back(i);
         }
     }
