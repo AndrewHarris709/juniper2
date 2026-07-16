@@ -9,6 +9,7 @@
 #pragma omp declare target
 namespace GPU {
     constexpr float NORM = 1 / M_PI;
+    constexpr int MAX_STACK_DEPTH = 64;
 
     float valueAt(const float q)
     {
@@ -99,18 +100,18 @@ namespace GPU {
         return std::abs(newH - oldH) / origH <= 1e-4;
     }
 
-    void getNeighbours(TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int nodeIndex, int partIndex, SimConfigDevice config, float partMax, bool* neighbourScratch, int* stackScratch) {
+    void getNeighbours(TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int nodeIndex, int partIndex, SimConfigDevice config, float partMax, bool result[]) {
+        int stackScratch[MAX_STACK_DEPTH]{};
         for (int i = 0; i < partCount; i++) {
-            neighbourScratch[omp_get_thread_num() * partCount + i] = false;
+            result[i] = false;
         }
 
         int stackSize = 0;
-
-        stackScratch[omp_get_thread_num() * nodeCount + (stackSize++)] = 0;
+        stackScratch[(stackSize++)] = 0;
         TreeNode* targetNode = &treeContents[nodeIndex];
 
         while (stackSize > 0) {
-            int nextNodeIndex = stackScratch[omp_get_thread_num() * nodeCount + (--stackSize)];
+            int nextNodeIndex = stackScratch[(--stackSize)];
             TreeNode* nextNode = &treeContents[nextNodeIndex];
 
             float distance = distBetweenNodes(&config, treeContents, nextNodeIndex, nodeIndex);
@@ -121,17 +122,17 @@ namespace GPU {
                     NodeRange nodeContents = getPartsFromNode(treeContents, treeMapping, nextNodeIndex);
                     for (int i = 0; i < nodeContents.size; i++) {
                         int realIndex = nodeContents.data[i];
-                        neighbourScratch[omp_get_thread_num() * partCount + realIndex] = true;
+                        result[realIndex] = true;
                     }
                 } else {
-                    stackScratch[omp_get_thread_num() * nodeCount + (stackSize++)] = nextNode->leftChild;
-                    stackScratch[omp_get_thread_num() * nodeCount + (stackSize++)] = nextNode->rightChild;
+                    stackScratch[(stackSize++)] = nextNode->leftChild;
+                    stackScratch[(stackSize++)] = nextNode->rightChild;
                 }
             }
         }
     }
 
-    float densityIterateAtParticle(float* xyzh, TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int partIndex, int nodeIndex, SimConfigDevice config, bool* neighbourScratch, int* stackScratch) {
+    float densityIterateAtParticle(float* xyzh, TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int partIndex, int nodeIndex, SimConfigDevice config) {
         int partA = partIndex;
         float oldH = std::numeric_limits<float>::max();
         float newH = xyzh[partA * 4 + 3];
@@ -139,7 +140,8 @@ namespace GPU {
         int iterationCount = 0;
 
         while (!atEndCondition(newH, oldH, origH)) {
-            getNeighbours(treeContents, treeMapping, nodeCount, partCount, nodeIndex, partIndex, config, newH, neighbourScratch, stackScratch);
+            bool neighbours[partCount]{};
+            getNeighbours(treeContents, treeMapping, nodeCount, partCount, nodeIndex, partIndex, config, newH, neighbours);
 
             float density = config.mass * std::pow(1.2 / newH, 3);
             float grad = -newH / (3 * density);
@@ -149,7 +151,7 @@ namespace GPU {
             for (int i = 0; i < partCount; i++) {
                 int partB = treeMapping[i];
 
-                if (!neighbourScratch[omp_get_thread_num() * partCount + partB]) {
+                if (!neighbours[partB]) {
                     continue;
                 }
 

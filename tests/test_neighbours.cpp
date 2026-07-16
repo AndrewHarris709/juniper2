@@ -43,9 +43,7 @@ TEST(NeighbourTest, NeighbourFindTest) {
     }
 
     bool* neighbourScratch = new bool[tree->getParticleCount()];
-    int *stackScratch = new int[tree->getNodeCount()];
-
-    GPU::getNeighbours(tree->data->contents, tree->data->mapping, tree->getNodeCount(), tree->getParticleCount(), nodeIndex, 208, data.getOffloadConfig(), data.h(208), neighbourScratch, stackScratch);
+    GPU::getNeighbours(tree->data->contents, tree->data->mapping, tree->getNodeCount(), tree->getParticleCount(), nodeIndex, 208, data.getOffloadConfig(), data.h(208), neighbourScratch);
 
     std::vector<int> neighbourList = {};
     for (int i = 0; i < tree->getParticleCount(); i++) {

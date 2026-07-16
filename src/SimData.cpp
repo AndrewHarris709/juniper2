@@ -37,15 +37,11 @@ void SimData::densityIterate() {
     int maxStackDepth = nodeCount;
     SimConfigDevice offloadConfig = this->config.getOffloadConfig();
 
-    bool* neighbourScratch = new bool[partCount * THREAD_LIMIT];
-    int *stackScratch = new int[maxStackDepth * THREAD_LIMIT];
-
-    #pragma omp target parallel for map(tofrom: xyzh[0:partCount*4]) \
-                                                     map(to: treeContents[0:nodeCount], mapping[0:partCount]) \
-                                                     map(to: nodeCount, partCount, offloadConfig) \
-                                                     map(alloc: neighbourScratch[0:partCount * THREAD_LIMIT], stackScratch[0:maxStackDepth * THREAD_LIMIT]) \
-                                                     defaultmap(none) \
-                                                     thread_limit(THREAD_LIMIT)
+    #pragma omp target teams distribute parallel for map(tofrom: xyzh[0:partCount*4]) \
+                                                      map(to: treeContents[0:nodeCount], mapping[0:partCount]) \
+                                                      map(to: nodeCount, partCount, offloadConfig) \
+                                                      defaultmap(none) \
+                                                      thread_limit(THREAD_LIMIT)
     for (int nodeIndex = 0; nodeIndex < nodeCount; nodeIndex++) {
         if (treeContents[nodeIndex].leftChild != -1) {
             // non-leaf node
@@ -54,7 +50,7 @@ void SimData::densityIterate() {
         NodeRange partIndices = GPU::getPartsFromNode(treeContents, mapping, nodeIndex);
         for (int i = 0; i < partIndices.size; i++) {
             int partIndex = partIndices.data[i];
-            float result = GPU::densityIterateAtParticle(xyzh, treeContents, mapping, nodeCount, partCount, partIndex, nodeIndex, offloadConfig, neighbourScratch, stackScratch);
+            float result = GPU::densityIterateAtParticle(xyzh, treeContents, mapping, nodeCount, partCount, partIndex, nodeIndex, offloadConfig);
             xyzh[4 * partIndex + 3] = result;
         }
     }
