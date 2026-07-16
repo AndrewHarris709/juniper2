@@ -7,14 +7,14 @@
 
 #include <string>
 
-#include "Tree.h"
+#include "SimConfig.h"
 
 
 class SimData {
+    SimConfig config;
 
 public:
-    explicit SimData(const std::string& filename);
-    explicit SimData() : SimData("") {};
+    explicit SimData(const std::string& filename, const std::string& configname);
     ~SimData();
 
     inline float& x(int i) { return xyzh[4*i+0]; }
@@ -30,7 +30,6 @@ public:
 
     int particleCount;
     double time;
-    float m;
     float* xyzh = nullptr;
     float* vxyzu = nullptr;
     float* fxyz = nullptr;
@@ -41,9 +40,12 @@ public:
     float* energies = nullptr;
 
     int getParticleCount() const;
+    float getMass();
 
     void toCSV(const std::string& filename);
-    void densityIterate(SimData& simData);
+    void densityIterate();
+
+    SimConfigDevice getOffloadConfig();
 };
 
 

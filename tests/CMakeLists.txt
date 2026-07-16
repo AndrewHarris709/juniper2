@@ -8,12 +8,7 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(IOTest test_io.cpp)
-target_link_libraries(IOTest
-        PRIVATE
-        GTest::gtest_main
-        GTest::gmock_main
-        JuniperSRC
-)
+target_link_libraries(IOTest PRIVATE GTest::gtest_main GTest::gmock_main JuniperSRC)
 add_test(NAME IO_Tests COMMAND IOTest)
 
 add_executable(DensityTest test_density.cpp)

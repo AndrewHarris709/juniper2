@@ -24,25 +24,25 @@ static inline const std::vector<std::string> posCols{"x", "y", "z", "h"};
 static inline const std::vector<std::string> velCols{"vx", "vy", "vz", "u"};
 static inline const std::vector<std::string> varCols{"fx", "fy", "fz"};
 
-void SimData::densityIterate(SimData& simData) {
-    Tree* tree = new Tree(simData.getParticleCount());
-    tree->build(simData);
+void SimData::densityIterate() {
+    Tree* tree = new Tree(this->getParticleCount());
+    tree->build(*this);
     std::cout << "Tree built with " << tree->getNodeCount() << "nodes." << std::endl;
 
-    float m = simData.m;
-    float* xyzh = simData.xyzh;
+    float* xyzh = this->xyzh;
     TreeNode* treeContents = tree->data->contents;
     int* mapping = tree->data->mapping;
     int nodeCount = tree->data->nodeCount;
     int partCount = tree->data->partCount;
     int maxStackDepth = nodeCount;
+    SimConfigDevice offloadConfig = this->config.getOffloadConfig();
 
     bool* neighbourScratch = new bool[partCount * THREAD_LIMIT];
     int *stackScratch = new int[maxStackDepth * THREAD_LIMIT];
 
     #pragma omp target parallel for map(tofrom: xyzh[0:partCount*4]) \
                                                      map(to: treeContents[0:nodeCount], mapping[0:partCount]) \
-                                                     map(to: nodeCount, partCount, m) \
+                                                     map(to: nodeCount, partCount, offloadConfig) \
                                                      map(alloc: neighbourScratch[0:partCount * THREAD_LIMIT], stackScratch[0:maxStackDepth * THREAD_LIMIT]) \
                                                      defaultmap(none) \
                                                      thread_limit(THREAD_LIMIT)
@@ -54,13 +54,13 @@ void SimData::densityIterate(SimData& simData) {
         NodeRange partIndices = GPU::getPartsFromNode(treeContents, mapping, nodeIndex);
         for (int i = 0; i < partIndices.size; i++) {
             int partIndex = partIndices.data[i];
-            float result = GPU::densityIterateAtParticle(xyzh, treeContents, mapping, nodeCount, partCount, partIndex, nodeIndex, m, neighbourScratch, stackScratch);
+            float result = GPU::densityIterateAtParticle(xyzh, treeContents, mapping, nodeCount, partCount, partIndex, nodeIndex, offloadConfig, neighbourScratch, stackScratch);
             xyzh[4 * partIndex + 3] = result;
         }
     }
 }
 
-SimData::SimData(const std::string& filename) {
+SimData::SimData(const std::string& filename, const std::string& configname): config(configname) {
     time = 0.0;
 
     if (filename.empty()) {
@@ -161,4 +161,13 @@ void SimData::toCSV(const std::string &filename) {
 int SimData::getParticleCount() const {
     return this->particleCount;
 }
+
+float SimData::getMass() {
+    return this->config.getMass();
+}
+
+SimConfigDevice SimData::getOffloadConfig() {
+    return this->config.getOffloadConfig();
+}
+
 

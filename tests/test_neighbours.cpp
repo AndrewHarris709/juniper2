@@ -14,7 +14,7 @@ void assertAtDepth(Tree* tree, int nodeIndex, int depth, int partCountAtDepth) {
 }
 
 TEST(NeighbourTest, TreeBuildTest) {
-    SimData sim = SimData(".//tests//files//kd_test.csv");
+    SimData sim = SimData(".//files//kd_test.csv", ".//files//kd_test.toml");
     Tree* tree = new Tree(sim.getParticleCount());
     tree->build(sim);
 
@@ -22,8 +22,7 @@ TEST(NeighbourTest, TreeBuildTest) {
 }
 
 TEST(NeighbourTest, NeighbourFindTest) {
-    SimData data = SimData(".//tests//files//kd_test.csv");
-    data.m = 0.01;
+    SimData data = SimData(".//files//kd_test.csv", ".//files//kd_test.toml");
     Tree* tree = new Tree(data.getParticleCount());
     tree->build(data);
 
@@ -46,7 +45,7 @@ TEST(NeighbourTest, NeighbourFindTest) {
     bool* neighbourScratch = new bool[tree->getParticleCount()];
     int *stackScratch = new int[tree->getNodeCount()];
 
-    GPU::getNeighbours(tree->data->contents, tree->data->mapping, tree->getNodeCount(), tree->getParticleCount(), nodeIndex, 208, data.h(208), neighbourScratch, stackScratch);
+    GPU::getNeighbours(tree->data->contents, tree->data->mapping, tree->getNodeCount(), tree->getParticleCount(), nodeIndex, 208, data.getOffloadConfig(), data.h(208), neighbourScratch, stackScratch);
 
     std::vector<int> neighbourList = {};
     for (int i = 0; i < tree->getParticleCount(); i++) {

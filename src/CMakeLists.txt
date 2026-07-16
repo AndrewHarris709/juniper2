@@ -1,9 +1,13 @@
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_LINKER_TYPE LLD)
 
-add_library(JuniperSRC STATIC kernel.cpp kernel.h SimData.cpp SimData.h Tree.cpp Tree.h ParticleOperators.cpp
-        commons.h
-        GPUOperators.cpp)
+add_library(JuniperSRC STATIC kernel.cpp kernel.h
+                              SimData.cpp SimData.h
+                              Tree.cpp Tree.h
+                              ParticleOperators.cpp commons.h
+                              GPUOperators.cpp GPUOperators.h
+                              SimConfig.cpp SimConfig.h
+                              toml.hpp)
 
 find_package(OpenMP REQUIRED)
 message(STATUS "OpenMP found: ${OpenMP_FOUND}")

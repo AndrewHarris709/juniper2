@@ -1,0 +1,4 @@
+[simconfig]
+mass = 0.01
+limits = [[0, 1], [0, 1], [0, 1]]
+name = "kd_test"

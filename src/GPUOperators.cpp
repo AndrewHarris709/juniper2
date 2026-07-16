@@ -3,6 +3,7 @@
 #include <omp.h>
 
 #include "kernel.h"
+#include "SimConfig.h"
 #include "Tree.h"
 
 #pragma omp declare target
@@ -54,22 +55,20 @@ namespace GPU {
         return range;
     }
 
-    float distBetween(float x1, float x2, float y1, float y2, float z1, float z2) {
+    float distBetween(SimConfigDevice* config, float x1, float x2, float y1, float y2, float z1, float z2) {
         // Periodic Boundary-aware distance calculation
         float dx = std::abs(x1 - x2);
         float dy = std::abs(y1 - y2);
         float dz = std::abs(z1 - z2);
 
-        float temp_bounds[6]{0, 1, 0, 1, 0, 1};
-
-        if (dx > (temp_bounds[1] - temp_bounds[0]) / 2) {
-            dx = (temp_bounds[1] - temp_bounds[0]) - dx;
+        if (dx > (config->boundingBox.x2 - config->boundingBox.x1) / 2) {
+            dx = (config->boundingBox.x2 - config->boundingBox.x1) - dx;
         }
-        if (dy > (temp_bounds[3] - temp_bounds[2]) / 2) {
-            dy = (temp_bounds[3] - temp_bounds[2]) - dy;
+        if (dy > (config->boundingBox.y2 - config->boundingBox.y1) / 2) {
+            dy = (config->boundingBox.y2 - config->boundingBox.y1) - dy;
         }
-        if (dz > (temp_bounds[5] - temp_bounds[4]) / 2) {
-            dz = (temp_bounds[5] - temp_bounds[4]) - dz;
+        if (dz > (config->boundingBox.z2 - config->boundingBox.z1) / 2) {
+            dz = (config->boundingBox.z2 - config->boundingBox.z1) - dz;
         }
 
         if (x1 > x2)
@@ -82,25 +81,25 @@ namespace GPU {
         return sqrtf(dx * dx + dy * dy + dz * dz);
     }
 
-    float distBetween(float* xyzh, int part1, int part2) {
+    float distBetween(SimConfigDevice* config, float* xyzh, int part1, int part2) {
         float x1 = xyzh[4 * part1], y1 = xyzh[4 * part1 + 1], z1 = xyzh[4 * part1 + 2];
         float x2 = xyzh[4 * part2], y2 = xyzh[4 * part2 + 1], z2 = xyzh[4 * part2 + 2];
 
-        return distBetween(x1, x2, y1, y2, z1, z2);
+        return distBetween(config, x1, x2, y1, y2, z1, z2);
     }
 
-    float distBetweenNodes(TreeNode* treeContents, int nodeIndex1, int nodeIndex2) {
+    float distBetweenNodes(SimConfigDevice* config, TreeNode* treeContents, int nodeIndex1, int nodeIndex2) {
         TreeNode* node1 = &treeContents[nodeIndex1];
         TreeNode* node2 = &treeContents[nodeIndex2];
 
-        return distBetween(node1->x, node2->x, node1->y, node2->y, node1->z, node2->z);
+        return distBetween(config, node1->x, node2->x, node1->y, node2->y, node1->z, node2->z);
     }
 
     bool atEndCondition(float newH, float oldH, float origH) {
         return std::abs(newH - oldH) / origH <= 1e-4;
     }
 
-    void getNeighbours(TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int nodeIndex, int partIndex, float partMax, bool* neighbourScratch, int* stackScratch) {
+    void getNeighbours(TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int nodeIndex, int partIndex, SimConfigDevice config, float partMax, bool* neighbourScratch, int* stackScratch) {
         for (int i = 0; i < partCount; i++) {
             neighbourScratch[omp_get_thread_num() * partCount + i] = false;
         }
@@ -114,7 +113,7 @@ namespace GPU {
             int nextNodeIndex = stackScratch[omp_get_thread_num() * nodeCount + (--stackSize)];
             TreeNode* nextNode = &treeContents[nextNodeIndex];
 
-            float distance = distBetweenNodes(treeContents, nextNodeIndex, nodeIndex);
+            float distance = distBetweenNodes(&config, treeContents, nextNodeIndex, nodeIndex);
             float targetBounds = nextNode->size + targetNode->size + (2 * std::max(targetNode->hmax, partMax));
 
             if (distance * distance < targetBounds * targetBounds) {
@@ -132,7 +131,7 @@ namespace GPU {
         }
     }
 
-    float densityIterateAtParticle(float* xyzh, TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int partIndex, int nodeIndex, float m, bool* neighbourScratch, int* stackScratch) {
+    float densityIterateAtParticle(float* xyzh, TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int partIndex, int nodeIndex, SimConfigDevice config, bool* neighbourScratch, int* stackScratch) {
         int partA = partIndex;
         float oldH = std::numeric_limits<float>::max();
         float newH = xyzh[partA * 4 + 3];
@@ -140,9 +139,9 @@ namespace GPU {
         int iterationCount = 0;
 
         while (!atEndCondition(newH, oldH, origH)) {
-            getNeighbours(treeContents, treeMapping, nodeCount, partCount, nodeIndex, partIndex, newH, neighbourScratch, stackScratch);
+            getNeighbours(treeContents, treeMapping, nodeCount, partCount, nodeIndex, partIndex, config, newH, neighbourScratch, stackScratch);
 
-            float density = m * std::pow(1.2 / newH, 3);
+            float density = config.mass * std::pow(1.2 / newH, 3);
             float grad = -newH / (3 * density);
 
             float density_sum = 0;
@@ -154,10 +153,10 @@ namespace GPU {
                     continue;
                 }
 
-                float dist = distBetween(xyzh, partA, partB);
+                float dist = distBetween(&config, xyzh, partA, partB);
 
-                density_sum += m * GPU::valueAt(dist / newH) / std::pow(newH, 3);
-                omega += m * GPU::dWdhAt(dist / newH);
+                density_sum += config.mass * GPU::valueAt(dist / newH) / std::pow(newH, 3);
+                omega += config.mass * GPU::dWdhAt(dist / newH);
             }
             omega = 1 - grad * omega / std::pow(newH, 4);
 

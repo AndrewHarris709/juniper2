@@ -15,18 +15,18 @@ void assertTestSim(SimData& simData) {
 }
 
 TEST(IOTest, BasicReaderTest) {
-    SimData data = SimData(".//tests//files//test.csv");
+    SimData data = SimData(".//files//test.csv", ".//files//test.toml");
 
     assertTestSim(data);
 }
 
 TEST(IOTest, BasicWriterTest) {
-    SimData simData = SimData(".//tests//files//test.csv");
-    simData.toCSV(".//tests//files//temp_writing_test.csv");
-    SimData writtenSim = SimData(".//tests//files//temp_writing_test.csv");
+    SimData simData = SimData(".//files//test.csv", ".//files//test.toml");
+    simData.toCSV(".//files//temp_writing_test.csv");
+    SimData writtenSim = SimData(".//files//temp_writing_test.csv", ".//files//test.toml");
 
     try {
-        std::filesystem::remove(".//tests//files//temp_writing_test.csv");
+        std::filesystem::remove(".//files//temp_writing_test.csv");
     } catch (const std::filesystem::filesystem_error& err) {
         std::cout << "Error deleting temporary file!: " << err.what() << "\n";
     }

@@ -14,13 +14,12 @@ int main()
 
     std::cout << "Loading Data" << std::endl;
 
-    SimData simData = SimData(".//test.csv");
-    simData.m = 3.0517578125e-05;
+    SimData simData = SimData(".//hydro32.csv", ".//hydro32.toml");
 
     auto start = std::chrono::high_resolution_clock::now();
 
     std::cout << "Beginning Density Iteration" << std::endl;
-    simData.densityIterate(simData);
+    simData.densityIterate();
     std::cout << "Done Density Iteration" << std::endl;
 
     auto end = std::chrono::high_resolution_clock::now();
