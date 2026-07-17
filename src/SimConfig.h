@@ -5,6 +5,7 @@
 #ifndef SIMCONFIG_H
 #define SIMCONFIG_H
 #include <string>
+#include <vector>
 
 #include "commons.h"
 
@@ -17,6 +18,7 @@ class SimConfig {
     junipermath::Box3f boundingBox;
     float mass;
     std::string name;
+    std::vector<std::string> reports;
 
 public:
     explicit SimConfig(const std::string& file);
@@ -25,6 +27,7 @@ public:
     float getMass();
     std::string& getName();
     SimConfigDevice getOffloadConfig();
+    bool shouldReport(const std::string& report);
 };
 
 #endif //SIMCONFIG_H

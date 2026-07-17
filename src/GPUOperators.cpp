@@ -1,14 +1,13 @@
+#include "GPUOperators.h"
+
 #include <cmath>
 #include <iostream>
-#include <omp.h>
 
-#include "kernel.h"
 #include "SimConfig.h"
 #include "Tree.h"
 
 #pragma omp declare target
 namespace GPU {
-    constexpr float NORM = 1 / M_PI;
     constexpr int MAX_STACK_DEPTH = 64;
 
     float valueAt(const float q)
@@ -100,11 +99,9 @@ namespace GPU {
         return std::abs(newH - oldH) / origH <= 1e-4;
     }
 
-    void getNeighbours(TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int nodeIndex, int partIndex, SimConfigDevice config, float partMax, bool result[]) {
+    void getNeighbours(TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int nodeIndex, int partIndex, SimConfigDevice config, float partMax, NeighbourList* result) {
         int stackScratch[MAX_STACK_DEPTH]{};
-        for (int i = 0; i < partCount; i++) {
-            result[i] = false;
-        }
+        result->count = 0;
 
         int stackSize = 0;
         stackScratch[(stackSize++)] = 0;
@@ -122,7 +119,7 @@ namespace GPU {
                     NodeRange nodeContents = getPartsFromNode(treeContents, treeMapping, nextNodeIndex);
                     for (int i = 0; i < nodeContents.size; i++) {
                         int realIndex = nodeContents.data[i];
-                        result[realIndex] = true;
+                        result->indices[(result->count++)] = realIndex;
                     }
                 } else {
                     stackScratch[(stackSize++)] = nextNode->leftChild;
@@ -140,20 +137,16 @@ namespace GPU {
         int iterationCount = 0;
 
         while (!atEndCondition(newH, oldH, origH)) {
-            bool neighbours[partCount]{};
-            getNeighbours(treeContents, treeMapping, nodeCount, partCount, nodeIndex, partIndex, config, newH, neighbours);
+            NeighbourList neighbours;
+            getNeighbours(treeContents, treeMapping, nodeCount, partCount, nodeIndex, partIndex, config, newH, &neighbours);
 
             float density = config.mass * std::pow(1.2 / newH, 3);
             float grad = -newH / (3 * density);
 
             float density_sum = 0;
             float omega = 0;
-            for (int i = 0; i < partCount; i++) {
-                int partB = treeMapping[i];
-
-                if (!neighbours[partB]) {
-                    continue;
-                }
+            for (int i = 0; i < neighbours.count; i++) {
+                int partB = neighbours.indices[i];
 
                 float dist = distBetween(&config, xyzh, partA, partB);
 

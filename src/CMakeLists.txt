@@ -7,6 +7,7 @@ add_library(JuniperSRC STATIC kernel.cpp kernel.h
                               ParticleOperators.cpp commons.h
                               GPUOperators.cpp GPUOperators.h
                               SimConfig.cpp SimConfig.h
+                              ReportBuilders.cpp ReportBuilders.h
                               toml.hpp)
 
 find_package(OpenMP REQUIRED)

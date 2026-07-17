@@ -18,6 +18,8 @@ int main()
 
     auto start = std::chrono::high_resolution_clock::now();
 
+    simData.generateReports();
+
     std::cout << "Beginning Density Iteration" << std::endl;
     simData.densityIterate();
     std::cout << "Done Density Iteration" << std::endl;

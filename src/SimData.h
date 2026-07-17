@@ -11,7 +11,6 @@
 
 
 class SimData {
-    SimConfig config;
 
 public:
     explicit SimData(const std::string& filename, const std::string& configname);
@@ -39,6 +38,8 @@ public:
     float* accs = nullptr;
     float* energies = nullptr;
 
+    SimConfig config;
+
     int getParticleCount() const;
     float getMass();
 
@@ -46,6 +47,7 @@ public:
     void densityIterate();
 
     SimConfigDevice getOffloadConfig();
+    void generateReports();
 };
 
 

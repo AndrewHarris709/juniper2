@@ -15,6 +15,7 @@
 #include "Tree.h"
 #include "commons.h"
 #include "GPUOperators.h"
+#include "ReportBuilders.h"
 
 constexpr float HFACT = 1.2;
 constexpr int MAX_DENSITY_ITERATIONS = 10;
@@ -166,4 +167,10 @@ SimConfigDevice SimData::getOffloadConfig() {
     return this->config.getOffloadConfig();
 }
 
-
+void SimData::generateReports() {
+    if (this->config.shouldReport("neighbours")) {
+        std::cout << "Generating Particle Neighbours Report...";
+        ReportBuilders::buildNeighboursReport(*this, this->config.getName());
+        std::cout << "Done" << std::endl;
+    }
+}
