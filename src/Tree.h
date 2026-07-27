@@ -5,21 +5,19 @@
 #ifndef JUNIPEREXE_TREENODE_H
 #define JUNIPEREXE_TREENODE_H
 
-#include <span>
-
 class SimData; // forward declare to avoid circular imports with SimData.h
 
 struct TreeNode {
-    float x;
-    float y;
-    float z;
-    float size;
-    float hmax;
-    int mappingStart;
-    int mappingSize;
+    float x = -1;
+    float y = -1;
+    float z = -1;
+    float size = -1;
+    float hmax = -1;
+    int mappingStart = -1;
+    int mappingSize = -1;
     int leftChild = -1;
     int rightChild = -1;
-    int parent;
+    int parent = -1;
 };
 
 struct TreeData {

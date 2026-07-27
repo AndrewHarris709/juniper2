@@ -43,7 +43,7 @@ TEST(NeighbourTest, NeighbourFindTest) {
     }
 
     GPU::NeighbourList neighbours;
-    GPU::getNeighbours(tree->data->contents, tree->data->mapping, tree->getNodeCount(), tree->getParticleCount(), nodeIndex, 208, data.getOffloadConfig(), data.h(208), &neighbours);
+    GPU::getNeighbours(tree->data, nodeIndex, data.getOffloadConfig(), data.h(208), &neighbours);
 
     std::vector<int> neighbourVector(neighbours.indices, neighbours.indices + neighbours.count);
 

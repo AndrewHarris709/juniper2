@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "Tree.h"
-#include "commons.h"
 #include "GPUOperators.h"
 #include "ReportBuilders.h"
 
@@ -31,27 +30,25 @@ void SimData::densityIterate() {
     std::cout << "Tree built with " << tree->getNodeCount() << "nodes." << std::endl;
 
     float* xyzh = this->xyzh;
-    TreeNode* treeContents = tree->data->contents;
-    int* mapping = tree->data->mapping;
-    int nodeCount = tree->data->nodeCount;
-    int partCount = tree->data->partCount;
-    int maxStackDepth = nodeCount;
+    TreeData* td = tree->data;
     SimConfigDevice offloadConfig = this->config.getOffloadConfig();
 
-    #pragma omp target teams distribute parallel for map(tofrom: xyzh[0:partCount*4]) \
-                                                      map(to: treeContents[0:nodeCount], mapping[0:partCount]) \
-                                                      map(to: nodeCount, partCount, offloadConfig) \
-                                                      defaultmap(none) \
-                                                      thread_limit(THREAD_LIMIT)
-    for (int nodeIndex = 0; nodeIndex < nodeCount; nodeIndex++) {
-        if (treeContents[nodeIndex].leftChild != -1) {
+    #pragma omp target teams distribute parallel for map(tofrom: xyzh[0:td->partCount*4]) \
+                                                        map(to: td->nodeCount, td->partCount) \
+                                                        map(to: td->contents[0:td->nodeCount]) \
+                                                        map(to: td->mapping[0:td->partCount]) \
+                                                        map(to: offloadConfig) \
+                                                        thread_limit(THREAD_LIMIT)
+    for (int nodeIndex = 0; nodeIndex < td->nodeCount; nodeIndex++) {
+        if (td->contents[nodeIndex].leftChild != -1) {
             // non-leaf node
             continue;
         }
-        NodeRange partIndices = GPU::getPartsFromNode(treeContents, mapping, nodeIndex);
+
+        NodeRange partIndices = GPU::getPartsFromNode(td, nodeIndex);
         for (int i = 0; i < partIndices.size; i++) {
             int partIndex = partIndices.data[i];
-            float result = GPU::densityIterateAtParticle(xyzh, treeContents, mapping, nodeCount, partCount, partIndex, nodeIndex, offloadConfig);
+            float result = GPU::densityIterateAtParticle(xyzh, td, partIndex, nodeIndex, offloadConfig);
             xyzh[4 * partIndex + 3] = result;
         }
     }

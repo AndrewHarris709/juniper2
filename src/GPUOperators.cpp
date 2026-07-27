@@ -6,7 +6,7 @@
 #include "SimConfig.h"
 #include "Tree.h"
 
-#pragma omp declare target
+#pragma omp begin declare target
 namespace GPU {
     constexpr int MAX_STACK_DEPTH = 64;
 
@@ -45,11 +45,11 @@ namespace GPU {
         return -1.0 * NORM * (3 * valueAt(q) + q * gradientAt(q));
     }
 
-    NodeRange getPartsFromNode(TreeNode* treeContents, int* mapping, int nodeIndex) {
-        TreeNode *node = &treeContents[nodeIndex];
+    NodeRange getPartsFromNode(TreeData* tree, int nodeIndex) {
+        TreeNode *node = &tree->contents[nodeIndex];
 
         NodeRange range;
-        range.data = mapping + node->mappingStart;
+        range.data = tree->mapping + node->mappingStart;
         range.size = node->mappingSize;
 
         return range;
@@ -88,9 +88,9 @@ namespace GPU {
         return distBetween(config, x1, x2, y1, y2, z1, z2);
     }
 
-    float distBetweenNodes(SimConfigDevice* config, TreeNode* treeContents, int nodeIndex1, int nodeIndex2) {
-        TreeNode* node1 = &treeContents[nodeIndex1];
-        TreeNode* node2 = &treeContents[nodeIndex2];
+    float distBetweenNodes(SimConfigDevice* config, TreeData* tree, int nodeIndex1, int nodeIndex2) {
+        TreeNode* node1 = &tree->contents[nodeIndex1];
+        TreeNode* node2 = &tree->contents[nodeIndex2];
 
         return distBetween(config, node1->x, node2->x, node1->y, node2->y, node1->z, node2->z);
     }
@@ -99,24 +99,24 @@ namespace GPU {
         return std::abs(newH - oldH) / origH <= 1e-4;
     }
 
-    void getNeighbours(TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int nodeIndex, int partIndex, SimConfigDevice config, float partMax, NeighbourList* result) {
+    void getNeighbours(TreeData* tree, int nodeIndex, SimConfigDevice config, float partMax, NeighbourList* result) {
         int stackScratch[MAX_STACK_DEPTH]{};
         result->count = 0;
 
         int stackSize = 0;
         stackScratch[(stackSize++)] = 0;
-        TreeNode* targetNode = &treeContents[nodeIndex];
+        TreeNode* targetNode = &(tree->contents[nodeIndex]);
 
         while (stackSize > 0) {
             int nextNodeIndex = stackScratch[(--stackSize)];
-            TreeNode* nextNode = &treeContents[nextNodeIndex];
+            TreeNode* nextNode = &tree->contents[nextNodeIndex];
 
-            float distance = distBetweenNodes(&config, treeContents, nextNodeIndex, nodeIndex);
+            float distance = distBetweenNodes(&config, tree, nextNodeIndex, nodeIndex);
             float targetBounds = nextNode->size + targetNode->size + (2 * std::max(targetNode->hmax, partMax));
 
             if (distance * distance < targetBounds * targetBounds) {
                 if (nextNode->leftChild == -1) {
-                    NodeRange nodeContents = getPartsFromNode(treeContents, treeMapping, nextNodeIndex);
+                    NodeRange nodeContents = getPartsFromNode(tree, nextNodeIndex);
                     for (int i = 0; i < nodeContents.size; i++) {
                         int realIndex = nodeContents.data[i];
                         result->indices[(result->count++)] = realIndex;
@@ -129,7 +129,7 @@ namespace GPU {
         }
     }
 
-    float densityIterateAtParticle(float* xyzh, TreeNode* treeContents, int* treeMapping, int nodeCount, int partCount, int partIndex, int nodeIndex, SimConfigDevice config) {
+    float densityIterateAtParticle(float* xyzh, TreeData* tree, int partIndex, int nodeIndex, SimConfigDevice config) {
         int partA = partIndex;
         float oldH = std::numeric_limits<float>::max();
         float newH = xyzh[partA * 4 + 3];
@@ -138,7 +138,7 @@ namespace GPU {
 
         while (!atEndCondition(newH, oldH, origH)) {
             NeighbourList neighbours;
-            getNeighbours(treeContents, treeMapping, nodeCount, partCount, nodeIndex, partIndex, config, newH, &neighbours);
+            getNeighbours(tree, nodeIndex, config, newH, &neighbours);
 
             float density = config.mass * std::pow(1.2 / newH, 3);
             float grad = -newH / (3 * density);

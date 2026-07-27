@@ -1,6 +1,12 @@
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_LINKER_TYPE LLD)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "16.0")
+        message(FATAL_ERROR "This project requires GCC 16 or newer. (found GCC ${CMAKE_CXX_COMPILER_VERSION})")
+    endif()
+endif()
+
 add_library(JuniperSRC STATIC kernel.cpp kernel.h
                               SimData.cpp SimData.h
                               Tree.cpp Tree.h

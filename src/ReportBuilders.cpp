@@ -28,17 +28,18 @@ bool ReportBuilders::buildNeighboursReport(SimData& data, std::string& name) {
     tree->build(data);
 
     std::map<int, std::vector<int>> treeNeighbours;
+
     for (int nodeIndex = 0; nodeIndex < tree->getNodeCount(); nodeIndex++) {
         if (!tree->isLeaf(nodeIndex)) {
             continue;
         }
 
-        NodeRange partIndices = GPU::getPartsFromNode(tree->data->contents, tree->data->mapping, nodeIndex);
+        NodeRange partIndices = GPU::getPartsFromNode(tree->data, nodeIndex);
         for (int i = 0; i < partIndices.size; i++) {
             int partIndex = partIndices.data[i];
 
             GPU::NeighbourList neighbours;
-            GPU::getNeighbours(tree->data->contents, tree->data->mapping, tree->data->nodeCount, tree->data->partCount, nodeIndex, partIndex, data.getOffloadConfig(), data.h(partIndex), &neighbours);
+            GPU::getNeighbours(tree->data, nodeIndex, data.getOffloadConfig(), data.h(partIndex), &neighbours);
 
             std::vector<int> neighbourVector(neighbours.indices, neighbours.indices + neighbours.count);
             treeNeighbours.emplace(partIndex, neighbourVector);
