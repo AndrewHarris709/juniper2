@@ -4,11 +4,13 @@
 
 #include "SimData.h"
 
+#include <cassert>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <omp.h>
 #include <ranges>
 #include <vector>
 
@@ -31,14 +33,15 @@ void SimData::densityIterate() {
 
     float* xyzh = this->xyzh;
     TreeData* td = tree->data;
-    SimConfigDevice offloadConfig = this->config.getOffloadConfig();
+    SimConfigDevice* deviceConfig = this->deviceConfig;
 
-    #pragma omp target teams distribute parallel for map(tofrom: xyzh[0:td->partCount*4]) \
-                                                        map(to: td->nodeCount, td->partCount) \
-                                                        map(to: td->contents[0:td->nodeCount]) \
-                                                        map(to: td->mapping[0:td->partCount]) \
-                                                        map(to: offloadConfig) \
-                                                        thread_limit(THREAD_LIMIT)
+    assert(omp_target_is_present(xyzh, omp_get_default_device()) && "xyzh not mapped on device");
+    assert(omp_target_is_present(deviceConfig, omp_get_default_device()) && "config not mapped on device");
+
+    #pragma omp target teams distribute parallel for  map(to: td->nodeCount, td->partCount) \
+                                                      map(to: td->contents[0:td->nodeCount]) \
+                                                      map(to: td->mapping[0:td->partCount]) \
+                                                      thread_limit(THREAD_LIMIT)
     for (int nodeIndex = 0; nodeIndex < td->nodeCount; nodeIndex++) {
         if (td->contents[nodeIndex].leftChild != -1) {
             // non-leaf node
@@ -48,10 +51,12 @@ void SimData::densityIterate() {
         NodeRange partIndices = GPU::getPartsFromNode(td, nodeIndex);
         for (int i = 0; i < partIndices.size; i++) {
             int partIndex = partIndices.data[i];
-            float result = GPU::densityIterateAtParticle(xyzh, td, partIndex, nodeIndex, offloadConfig);
+            float result = GPU::densityIterateAtParticle(xyzh, td, partIndex, nodeIndex, deviceConfig);
             xyzh[4 * partIndex + 3] = result;
         }
     }
+
+    pullGPU();
 }
 
 SimData::SimData(const std::string& filename, const std::string& configname): config(configname) {
@@ -117,9 +122,14 @@ SimData::SimData(const std::string& filename, const std::string& configname): co
     this->particleCount = particleCount;
 
     file.close();
+
+    this->deviceConfig = getOffloadConfig();
+    #pragma omp target enter data map(to: xyzh[0:this->getParticleCount()*4], *this->deviceConfig)
 }
 
 SimData::~SimData() {
+    #pragma omp target exit data map(release: xyzh[0:this->getParticleCount()*4], *this->deviceConfig)
+
     delete[] xyzh;
     delete[] vxyzu;
     delete[] fxyz;
@@ -160,8 +170,8 @@ float SimData::getMass() {
     return this->config.getMass();
 }
 
-SimConfigDevice SimData::getOffloadConfig() {
-    return this->config.getOffloadConfig();
+SimConfigDevice* SimData::getOffloadConfig() {
+    return &config.g_config;
 }
 
 void SimData::generateReports() {
@@ -171,3 +181,12 @@ void SimData::generateReports() {
         std::cout << "Done" << std::endl;
     }
 }
+
+void SimData::updateGPU() {
+    #pragma omp target update to(xyzh[0:this->getParticleCount()*4])
+}
+
+void SimData::pullGPU() {
+    #pragma omp target update from(xyzh[0:this->getParticleCount()*4])
+}
+

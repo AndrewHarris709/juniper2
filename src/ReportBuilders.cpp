@@ -39,7 +39,7 @@ bool ReportBuilders::buildNeighboursReport(SimData& data, std::string& name) {
             int partIndex = partIndices.data[i];
 
             GPU::NeighbourList neighbours;
-            GPU::getNeighbours(tree->data, nodeIndex, data.getOffloadConfig(), data.h(partIndex), &neighbours);
+            GPU::getNeighbours(tree->data, nodeIndex, &data.config.g_config, data.h(partIndex), &neighbours);
 
             std::vector<int> neighbourVector(neighbours.indices, neighbours.indices + neighbours.count);
             treeNeighbours.emplace(partIndex, neighbourVector);
@@ -56,8 +56,8 @@ bool ReportBuilders::buildNeighboursReport(SimData& data, std::string& name) {
 
         ss << i << ",true";
         for (int j = 0; j < data.getParticleCount(); j++) {
-            SimConfigDevice config = data.getOffloadConfig();
-            if (GPU::distBetween(&config, data.x(i), data.x(j), data.y(i), data.y(j), data.z(i), data.z(j)) / data.h(i) < 2) {
+            SimConfigDevice* config = data.getOffloadConfig();
+            if (GPU::distBetween(config, data.x(i), data.x(j), data.y(i), data.y(j), data.z(i), data.z(j)) / data.h(i) < 2) {
                 ss << "," << j;
             }
         }

@@ -39,6 +39,7 @@ public:
     float* energies = nullptr;
 
     SimConfig config;
+    SimConfigDevice* deviceConfig;
 
     int getParticleCount() const;
     float getMass();
@@ -46,8 +47,11 @@ public:
     void toCSV(const std::string& filename);
     void densityIterate();
 
-    SimConfigDevice getOffloadConfig();
+    SimConfigDevice* getOffloadConfig();
     void generateReports();
+
+    void updateGPU();
+    void pullGPU();
 };
 
 

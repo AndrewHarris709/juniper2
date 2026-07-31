@@ -99,7 +99,7 @@ namespace GPU {
         return std::abs(newH - oldH) / origH <= 1e-4;
     }
 
-    void getNeighbours(TreeData* tree, int nodeIndex, SimConfigDevice config, float partMax, NeighbourList* result) {
+    void getNeighbours(TreeData* tree, int nodeIndex, SimConfigDevice* config, float partMax, NeighbourList* result) {
         int stackScratch[MAX_STACK_DEPTH]{};
         result->count = 0;
 
@@ -111,7 +111,7 @@ namespace GPU {
             int nextNodeIndex = stackScratch[(--stackSize)];
             TreeNode* nextNode = &tree->contents[nextNodeIndex];
 
-            float distance = distBetweenNodes(&config, tree, nextNodeIndex, nodeIndex);
+            float distance = distBetweenNodes(config, tree, nextNodeIndex, nodeIndex);
             float targetBounds = nextNode->size + targetNode->size + (2 * std::max(targetNode->hmax, partMax));
 
             if (distance * distance < targetBounds * targetBounds) {
@@ -129,7 +129,7 @@ namespace GPU {
         }
     }
 
-    float densityIterateAtParticle(float* xyzh, TreeData* tree, int partIndex, int nodeIndex, SimConfigDevice config) {
+    float densityIterateAtParticle(float* xyzh, TreeData* tree, int partIndex, int nodeIndex, SimConfigDevice* config) {
         int partA = partIndex;
         float oldH = std::numeric_limits<float>::max();
         float newH = xyzh[partA * 4 + 3];
@@ -140,7 +140,7 @@ namespace GPU {
             NeighbourList neighbours;
             getNeighbours(tree, nodeIndex, config, newH, &neighbours);
 
-            float density = config.mass * std::pow(1.2 / newH, 3);
+            float density = config->mass * std::pow(1.2 / newH, 3);
             float grad = -newH / (3 * density);
 
             float density_sum = 0;
@@ -148,10 +148,10 @@ namespace GPU {
             for (int i = 0; i < neighbours.count; i++) {
                 int partB = neighbours.indices[i];
 
-                float dist = distBetween(&config, xyzh, partA, partB);
+                float dist = distBetween(config, xyzh, partA, partB);
 
-                density_sum += config.mass * GPU::valueAt(dist / newH) / std::pow(newH, 3);
-                omega += config.mass * GPU::dWdhAt(dist / newH);
+                density_sum += config->mass * GPU::valueAt(dist / newH) / std::pow(newH, 3);
+                omega += config->mass * GPU::dWdhAt(dist / newH);
             }
             omega = 1 - grad * omega / std::pow(newH, 4);
 

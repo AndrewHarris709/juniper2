@@ -34,6 +34,8 @@ SimConfig::SimConfig(const std::string &file) {
     catch (const toml::parse_error& err) {
         std::cerr << "Parsing failed:\n" << err << "\n";
     }
+
+    g_config = SimConfigDevice{mass, boundingBox};
 }
 
 junipermath::Box3f SimConfig::getBoundingBox() {

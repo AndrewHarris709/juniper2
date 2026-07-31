@@ -25,8 +25,8 @@ namespace GPU {
     float distBetween(SimConfigDevice* config, float x1, float x2, float y1, float y2, float z1, float z2);
     float distBetweenNodes(TreeData* tree, int nodeIndex1, int nodeIndex2);
     bool atEndCondition(float newH, float oldH, float origH);
-    void getNeighbours(TreeData* tree, int nodeIndex, SimConfigDevice config, float partMax, NeighbourList* result);
-    float densityIterateAtParticle(float* xyzh, TreeData* tree, int partIndex, int nodeIndex, SimConfigDevice config);
+    void getNeighbours(TreeData* tree, int nodeIndex, SimConfigDevice* config, float partMax, NeighbourList* result);
+    float densityIterateAtParticle(float* xyzh, TreeData* tree, int partIndex, int nodeIndex, SimConfigDevice* config);
 
 }
 #pragma omp end declare target

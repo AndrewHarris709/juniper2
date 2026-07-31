@@ -28,6 +28,8 @@ public:
     std::string& getName();
     SimConfigDevice getOffloadConfig();
     bool shouldReport(const std::string& report);
+
+    SimConfigDevice g_config;
 };
 
 #endif //SIMCONFIG_H
