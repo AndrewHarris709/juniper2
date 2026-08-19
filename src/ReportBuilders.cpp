@@ -9,6 +9,7 @@
 #include <fstream>
 
 #include "GPUOperators.h"
+#include "LeapfrogIntegrator.h"
 #include "Tree.h"
 
 bool ReportBuilders::output(std::stringstream& ss, std::string &filename) {
@@ -65,6 +66,46 @@ bool ReportBuilders::buildNeighboursReport(SimData& data, std::string& name) {
     }
 
     std::string outputName = ".//output//" + name + "_neighbours.jrep";
+
+    return output(ss, outputName);
+}
+
+bool ReportBuilders::buildAccelerationEnergyReport(SimData& data, std::string& name) {
+    Tree* tree = new Tree(data.getParticleCount());
+    tree->build(data);
+    TreeData* td = tree->data;
+    float* xyzh = data.xyzh;
+    float* vxyzu = data.vxyzu;
+    SimConfigDevice* config = data.getOffloadConfig();
+
+    auto* accs = new junipermath::Point3f[data.getParticleCount()]{{0}};
+    auto* energy = new float[data.getParticleCount()]{0};
+
+    #pragma omp target teams distribute parallel for  map(to: vxyzu[0:data.getParticleCount() * 4]) \
+                                                      map(tofrom: accs[0:data.getParticleCount()], energy[0:data.getParticleCount()]) \
+                                                      map(to: td->nodeCount, td->partCount) \
+                                                      map(to: td->contents[0:td->nodeCount]) \
+                                                      map(to: td->mapping[0:td->partCount])
+    for (int nodeIndex = 0; nodeIndex < td->nodeCount; nodeIndex++) {
+        if (td->contents[nodeIndex].leftChild != -1) {
+            // non-leaf node
+            continue;
+        }
+
+        NodeRange partIndices = GPU::getPartsFromNode(td, nodeIndex);
+        for (int i = 0; i < partIndices.size; i++) {
+            int partIndex = partIndices.data[i];
+            accs[i] = LeapfrogIntegrator::accForParticle(partIndex, nodeIndex, xyzh, vxyzu, td, config);
+            energy[i] = LeapfrogIntegrator::energyChangeForParticle(partIndex, nodeIndex, xyzh, vxyzu, td, config);
+        }
+    }
+
+    std::stringstream ss;
+    for (int i = 0; i < data.getParticleCount(); i++) {
+        ss << i << "," << energy[i] << "," << accs[i].x << "," << accs[i].y << "," << accs[i].z << std::endl;
+    }
+
+    std::string outputName = ".//output//" + name + "_accenergy.jrep";
 
     return output(ss, outputName);
 }

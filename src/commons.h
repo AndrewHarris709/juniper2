@@ -1,7 +1,6 @@
-#include <cmath>
-
 #ifndef COMMONS_H
 #define COMMONS_H
+#include <cmath>
 
 namespace junipermath {
     struct Point3f {

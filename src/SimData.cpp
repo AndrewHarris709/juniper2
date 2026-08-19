@@ -180,6 +180,12 @@ void SimData::generateReports() {
         ReportBuilders::buildNeighboursReport(*this, this->config.getName());
         std::cout << "Done" << std::endl;
     }
+
+    if (this->config.shouldReport("accenergy")) {
+        std::cout << "Generating Acceleration and Energy Report...";
+        ReportBuilders::buildAccelerationEnergyReport(*this, this->config.getName());
+        std::cout << "Done" << std::endl;
+    }
 }
 
 void SimData::updateGPU() {

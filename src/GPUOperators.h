@@ -5,6 +5,8 @@
 #ifndef GPUOPERATORS_H
 #define GPUOPERATORS_H
 
+#include <math.h>
+
 #include "SimConfig.h"
 #include "Tree.h"
 
@@ -23,6 +25,7 @@ namespace GPU {
     float dWdhAt(float q);
     NodeRange getPartsFromNode(TreeData* tree, int nodeIndex);
     float distBetween(SimConfigDevice* config, float x1, float x2, float y1, float y2, float z1, float z2);
+    float distBetween(SimConfigDevice* config, TreeData* tree, int part1, int part2);
     float distBetweenNodes(TreeData* tree, int nodeIndex1, int nodeIndex2);
     bool atEndCondition(float newH, float oldH, float origH);
     void getNeighbours(TreeData* tree, int nodeIndex, SimConfigDevice* config, float partMax, NeighbourList* result);

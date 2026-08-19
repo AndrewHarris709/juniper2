@@ -2,3 +2,4 @@
 mass = 3.0517578125e-05
 limits = [[0, 1], [0, 1], [0, 1]]
 name = "hydro32"
+reports = ["neighbours"]
