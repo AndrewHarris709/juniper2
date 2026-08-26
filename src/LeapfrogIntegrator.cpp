@@ -8,58 +8,69 @@
 
 #include "GPUOperators.h"
 
-#pragma omp begin declare target
+//#pragma omp begin declare target
 namespace LeapfrogIntegrator {
-    float densityForParticle(int partIndex, float *xyzh, TreeData *tree, SimConfigDevice *simConfig) {
+    float densityForParticle(int partIndex, int nodeIndex, float *xyzh, TreeData *tree, SimConfigDevice *config) {
         float density = 0.0f;
-        // ???
-        for (int i = 0; i < tree->partCount; i++) {
-            float dist = GPU::distBetween(simConfig, tree, partIndex, i);
-            float tarH = xyzh[4 * partIndex * 3];
-            density += GPU::valueAt(dist / tarH) * simConfig->mass;
+
+        GPU::NeighbourList neighbours;
+        float newH = xyzh[4 * partIndex + 3];
+        getNeighbours(tree, nodeIndex, config, newH, &neighbours);
+
+        for (int i = 0; i < neighbours.count; i++) {
+            int partB = neighbours.indices[i];
+            float dist = GPU::distBetween(config, xyzh, partIndex, partB);
+            float tarH = xyzh[4 * partIndex + 3];
+            density += GPU::valueAt(dist / tarH) * config->mass;
         }
         return density;
     }
 
-    float omegaForParticle(int partIndex, float *xyzh, TreeData *tree, SimConfigDevice *simConfig) {
+    float omegaForParticle(int partIndex, int nodeIndex, float density, float *xyzh, TreeData *tree, SimConfigDevice *config) {
         float omega = 0.0f;
-        float newH = xyzh[4 * partIndex * 3];
-        float grad = -1 * (newH / (3 * densityForParticle(partIndex, xyzh, tree, simConfig)));
+        float newH = xyzh[4 * partIndex + 3];
+        float grad = -1 * (newH / (3 * density));
 
-        for (int i = 0; i < tree->partCount; i++) {
-            float dist = GPU::distBetween(simConfig, tree, partIndex, i);
-            omega += simConfig->mass * GPU::dWdhAt(dist / newH);
+        GPU::NeighbourList neighbours;
+        getNeighbours(tree, nodeIndex, config, newH, &neighbours);
+
+        for (int i = 0; i < neighbours.count; i++) {
+            int partB = neighbours.indices[i];
+            float dist = GPU::distBetween(config, xyzh, partIndex, partB);
+            omega += config->mass * GPU::dWdhAt(dist / newH);
         }
 
-        return omega;
+        return 1 - grad * omega / (newH * newH * newH * newH);
     }
 
-    float pressureForParticle(int partIndex, float *xyzh, float *vxyzu, TreeData *tree, SimConfigDevice *simConfig) {
-        return (GAMMA - 1) * densityForParticle(partIndex, xyzh, tree, simConfig) * vxyzu[4 * partIndex + 3];
+    float pressureForParticle(int partIndex, float density, float *vxyzu, TreeData *tree, SimConfigDevice *simConfig) {
+        return (GAMMA - 1) * density * vxyzu[4 * partIndex + 3];
     }
 
-    float accForParticle(int partIndex, int nodeIndex, float *xyzh, float *vxyzu, TreeData *tree, SimConfigDevice *config) {
+    junipermath::Point3f accForParticle(int partIndex, int nodeIndex, float *xyzh, float *vxyzu, float *density, float* omega, TreeData *tree, SimConfigDevice *config) {
         float ax = 0, ay = 0, az = 0;
-        float partDensity = densityForParticle(partIndex, xyzh, tree, config);
-        float partOmega = omegaForParticle(partIndex, nodeIndex, xyzh, tree, config);
-        float partPressure = pressureForParticle(partIndex, xyzh, vxyzu, tree, config);
+        float partDensity = density[partIndex];
+        float partOmega = omega[partIndex];
+        float partPressure = pressureForParticle(partIndex, partDensity, vxyzu, tree, config);
 
         GPU::NeighbourList neighbours;
         getNeighbours(tree, nodeIndex, config, xyzh[4 * partIndex + 3], &neighbours);
         for (int i = 0; i < neighbours.count; i++) {
-            float partQAB = qabForParticle(partIndex, i, xyzh, tree, config);
+            int partNeighbour = neighbours.indices[i];
+
+            float partQAB = qabForParticle(partIndex, partNeighbour, xyzh, vxyzu, partDensity, tree, config);
             float partRatio = (partPressure + partQAB) / (partDensity * partDensity * partOmega);
 
-            float neighbourDensity = densityForParticle(i, xyzh, tree, config);
-            float neighbourOmega = omegaForParticle(i, nodeIndex, xyzh, tree, config);
-            float neighbourQAB = qabForParticle(i, partIndex, xyzh, tree, config);
-            float neighbourPressure = pressureForParticle(i, xyzh, vxyzu, tree, config);
+            float neighbourDensity = density[partNeighbour];
+            float neighbourOmega = omega[partNeighbour];
+            float neighbourQAB = qabForParticle(partNeighbour, partIndex, xyzh, vxyzu, neighbourDensity, tree, config);
+            float neighbourPressure = pressureForParticle(partNeighbour, neighbourDensity, vxyzu, tree, config);
             float neighbourRatio = (neighbourPressure + neighbourQAB) / (neighbourDensity * neighbourDensity * neighbourOmega);
 
-            junipermath::Point3f disp = displacementBetween(partIndex, i, xyzh, config);
+            junipermath::Point3f disp = displacementBetween(partIndex, partNeighbour, xyzh, config);
             junipermath::Point3f dispNorm = norm(disp);
-            float distance = GPU::distBetween(config, tree, partIndex, i);
-            float hPart = xyzh[4 * partIndex + 3], hNeighbour = xyzh[4 * i + 3];
+            float distance = GPU::distBetween(config, xyzh, partIndex, partNeighbour);
+            float hPart = xyzh[4 * partIndex + 3], hNeighbour = xyzh[4 * partNeighbour + 3];
 
             float partGradient = GPU::gradientAt(distance / hPart) / (hPart * hPart * hPart * hPart);
             float neighbourGradient = GPU::gradientAt(distance / hNeighbour) / (hNeighbour * hNeighbour * hNeighbour * hNeighbour);
@@ -72,23 +83,25 @@ namespace LeapfrogIntegrator {
         return junipermath::Point3f{ax, ay, ax};
     }
 
-    float energyChangeForParticle(int partIndex, int nodeIndex, float *xyzh, float *vxyzu, TreeData *tree, SimConfigDevice *config) {
+    float energyChangeForParticle(int partIndex, int nodeIndex, float *xyzh, float *vxyzu, float *density, float* omega, TreeData *tree, SimConfigDevice *config) {
         float uChange = 0;
 
-        float partDensity = densityForParticle(partIndex, xyzh, tree, config);
-        float partOmega = omegaForParticle(partIndex, nodeIndex, xyzh, tree, config);
-        float partPressure = pressureForParticle(partIndex, xyzh, vxyzu, tree, config);
+        float partDensity = density[partIndex];
+        float partOmega = omega[partIndex];
+        float partPressure = pressureForParticle(partIndex, partDensity, vxyzu, tree, config);
         float partRatio = partPressure / (partDensity * partDensity * partOmega);
         float hPart = xyzh[4 * partIndex + 3];
 
         GPU::NeighbourList neighbours;
         getNeighbours(tree, nodeIndex, config, hPart, &neighbours);
         for (int i = 0; i < neighbours.count; i++) {
-            junipermath::Point3f vDiff = velocityDiffBetween(partIndex, i, vxyzu);
-            junipermath::Point3f disp = displacementBetween(partIndex, i, xyzh, config);
+            int partNeighbour = neighbours.indices[i];
+
+            junipermath::Point3f vDiff = velocityDiffBetween(partIndex, partNeighbour, vxyzu);
+            junipermath::Point3f disp = displacementBetween(partIndex, partNeighbour, xyzh, config);
             junipermath::Point3f dispNorm = norm(disp);
 
-            float distance = GPU::distBetween(config, tree, partIndex, i);
+            float distance = GPU::distBetween(config, xyzh, partIndex, partNeighbour);
             float partGradient = GPU::gradientAt(distance / hPart) / (hPart * hPart * hPart * hPart);
 
             float xComp = vDiff.x * dispNorm.x * partGradient;
@@ -101,7 +114,7 @@ namespace LeapfrogIntegrator {
         return uChange * partRatio;
     }
 
-    float qabForParticle(int partIndex, int otherPart, float *xyzh, float *vxyzu, TreeData *tree, SimConfigDevice *config) {
+    float qabForParticle(int partIndex, int otherPart, float *xyzh, float *vxyzu, float densityA, TreeData *tree, SimConfigDevice *config) {
         const junipermath::Point3f velocityDiff = velocityDiffBetween(partIndex, otherPart, vxyzu);
         const junipermath::Point3f displacement = displacementBetween(partIndex, otherPart, xyzh, config);
         const junipermath::Point3f dispNorm = norm(displacement);
@@ -111,8 +124,7 @@ namespace LeapfrogIntegrator {
             return 0;
         }
 
-        const float densityA = densityForParticle(partIndex, xyzh, tree, config);
-        const float pressureA = pressureForParticle(partIndex, xyzh, vxyzu, tree, config);
+        const float pressureA = pressureForParticle(partIndex, densityA, vxyzu, tree, config);
         const float soundSpeed = sqrt(GAMMA * pressureA / densityA);
         const float signalSpeed = 1 * soundSpeed + 2 * std::abs(losDot);
 
@@ -170,4 +182,4 @@ namespace LeapfrogIntegrator {
     }
 }
 
-#pragma omp end declare target
+//#pragma omp end declare target
