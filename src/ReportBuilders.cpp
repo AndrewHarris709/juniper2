@@ -8,6 +8,7 @@
 #include <sstream>
 #include <fstream>
 
+#include "LeapfrogIntegrator.h"
 #include "GPUOperators.h"
 #include "Tree.h"
 
@@ -88,7 +89,6 @@ bool ReportBuilders::buildAccelerationEnergyReport(SimData& data, std::string& n
             // non-leaf node
             continue;
         }
-        std::cout << "Precompute node " << nodeIndex << std::endl;
 
         NodeRange partIndices = GPU::getPartsFromNode(td, nodeIndex);
         for (int i = 0; i < partIndices.size; i++) {
