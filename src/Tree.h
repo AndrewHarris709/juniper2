@@ -61,7 +61,7 @@ public:
     int getRightChild(int nodeIndex);
     bool isLeaf(int nodeIndex);
     void splitLeaf(SimData& data, int nodeIndex);
-    float distBetweenNodes(int nodeIndex1, int nodeIndex2);
+    float distBetweenNodes(SimConfig &config, int nodeIndex1, int nodeIndex2);
     int getParticleCount();
     int getNodeCount();
 

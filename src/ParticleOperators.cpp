@@ -79,7 +79,7 @@ namespace PartOps {
         for (int i = 0; i < contents.size; i++) {
             int p = contents.data[i];
             if (data.h(p) > maxSmoothingLength) {
-                maxSmoothingLength = data.h(i);
+                maxSmoothingLength = data.h(p);
             }
         }
 

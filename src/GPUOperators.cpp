@@ -42,7 +42,7 @@ namespace GPU {
     }
 
     float dWdhAt(const float q) {
-        return -1.0 * NORM * (3 * valueAt(q) + q * gradientAt(q));
+        return -1.0 * (3 * valueAt(q) + q * gradientAt(q));
     }
 
     NodeRange getPartsFromNode(TreeData* tree, int nodeIndex) {

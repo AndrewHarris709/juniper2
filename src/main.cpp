@@ -14,7 +14,7 @@ int main()
 
     std::cout << "Loading Data" << std::endl;
 
-    SimData simData = SimData(".//hydro32.csv", ".//hydro32.toml");
+    SimData simData = SimData(".//kh_00000.csv", ".//kh_00000.toml");
 
     auto start = std::chrono::high_resolution_clock::now();
 

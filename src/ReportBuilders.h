@@ -12,6 +12,7 @@ class ReportBuilders {
 
 public:
     static bool buildNeighboursReport(SimData& data, std::string& name);
+    static bool buildAccelerationEnergyReport(SimData& data, std::string& name);
 };
 
 #endif //REPORTBUILDERS_H

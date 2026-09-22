@@ -38,11 +38,11 @@ TreeNode* Tree::getNode(int nodeIndex) {
     return &this->data->contents[nodeIndex];
 }
 
-float Tree::distBetweenNodes(int nodeIndex1, int nodeIndex2) {
+float Tree::distBetweenNodes(SimConfig& config, int nodeIndex1, int nodeIndex2) {
     TreeNode* node1 = this->getNode(nodeIndex1);
     TreeNode* node2 = this->getNode(nodeIndex2);
 
-    return junipermath::distBetween(node1->x, node2->x, node1->y, node2->y, node1->z, node2->z);
+    return junipermath::distBetween(config.getBoundingBox(), node1->x, node2->x, node1->y, node2->y, node1->z, node2->z);
 }
 
 NodeRange Tree::getPartsFromNode(int nodeIndex) {
