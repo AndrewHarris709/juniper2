@@ -7,10 +7,8 @@
 #include <map>
 #include <sstream>
 #include <fstream>
-#include <iostream>
 
 #include "GPUOperators.h"
-#include "LeapfrogIntegrator.h"
 #include "Tree.h"
 
 bool ReportBuilders::output(std::stringstream& ss, std::string &filename) {
