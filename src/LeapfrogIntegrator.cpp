@@ -4,12 +4,16 @@
 
 #include "LeapfrogIntegrator.h"
 
+#include <cassert>
 #include <cmath>
+#include <omp.h>
 
 #include "GPUOperators.h"
+#include "SimData.h"
+
+namespace LeapfrogIntegrator {
 
 #pragma omp begin declare target
-namespace LeapfrogIntegrator {
     float densityForParticle(int partIndex, int nodeIndex, float *xyzh, TreeData *tree, SimConfigDevice *config) {
         float density = 0.0f;
 
@@ -185,6 +189,143 @@ namespace LeapfrogIntegrator {
 
         return {dx, dy, dz};
     }
-}
 
+    float periodicWrap(float coord, float lower, float upper) {
+        const float length = upper - lower;
+
+        if (coord >= upper) {
+            return coord - length;
+        }
+        if (coord < lower) {
+            return coord + length;
+        }
+        return coord;
+    }
 #pragma omp end declare target
+
+    constexpr int THREAD_LIMIT = 512;
+
+    // Builds the neighbour tree from the host copy of xyzh (CPU), then computes the acceleration and energy change of
+    // every particle (GPU). Expects xyzh, vxyzu, density, omega, accs and energies to already be mapped on the device.
+    static void computeAccelerationAndEnergy(SimData& data) {
+        Tree tree(data.getParticleCount());
+        tree.build(data);
+
+        TreeData* td = tree.data;
+        const int nodeCount = tree.getNodeCount();
+        float* xyzh = data.xyzh;
+        float* vxyzu = data.vxyzu;
+        float* density = data.density;
+        float* omega = data.omega;
+        float* accs = data.accs;
+        float* energies = data.energies;
+        SimConfigDevice* config = data.deviceConfig;
+
+        // The acceleration of a particle depends on the density & omega of its neighbours, so these must be complete
+        // for every particle (hence a separate kernel) before any acceleration is computed.
+        #pragma omp target teams distribute parallel for  map(to: td->nodeCount, td->partCount) \
+                                                          map(to: td->contents[0:td->nodeCount]) \
+                                                          map(to: td->mapping[0:td->partCount]) \
+                                                          thread_limit(THREAD_LIMIT)
+        for (int nodeIndex = 0; nodeIndex < nodeCount; nodeIndex++) {
+            if (td->contents[nodeIndex].leftChild != -1) {
+                // non-leaf node
+                continue;
+            }
+
+            NodeRange partIndices = GPU::getPartsFromNode(td, nodeIndex);
+            for (int i = 0; i < partIndices.size; i++) {
+                int partIndex = partIndices.data[i];
+                density[partIndex] = densityForParticle(partIndex, nodeIndex, xyzh, td, config);
+                omega[partIndex] = omegaForParticle(partIndex, nodeIndex, density[partIndex], xyzh, td, config);
+            }
+        }
+
+        #pragma omp target teams distribute parallel for  map(to: td->nodeCount, td->partCount) \
+                                                          map(to: td->contents[0:td->nodeCount]) \
+                                                          map(to: td->mapping[0:td->partCount]) \
+                                                          thread_limit(THREAD_LIMIT)
+        for (int nodeIndex = 0; nodeIndex < nodeCount; nodeIndex++) {
+            if (td->contents[nodeIndex].leftChild != -1) {
+                // non-leaf node
+                continue;
+            }
+
+            NodeRange partIndices = GPU::getPartsFromNode(td, nodeIndex);
+            for (int i = 0; i < partIndices.size; i++) {
+                int partIndex = partIndices.data[i];
+                junipermath::Point3f acc = accForParticle(partIndex, nodeIndex, xyzh, vxyzu, density, omega, td, config);
+                accs[3 * partIndex + 0] = acc.x;
+                accs[3 * partIndex + 1] = acc.y;
+                accs[3 * partIndex + 2] = acc.z;
+                energies[partIndex] = energyChangeForParticle(partIndex, nodeIndex, xyzh, vxyzu, density, omega, td, config);
+            }
+        }
+    }
+
+    void step(SimData& data, const float timestep) {
+        const int n = data.getParticleCount();
+        const float halfStep = 0.5f * timestep;
+        float* xyzh = data.xyzh;
+        float* vxyzu = data.vxyzu;
+        float* density = data.density;
+        float* omega = data.omega;
+        float* accs = data.accs;
+        float* energies = data.energies;
+        SimConfigDevice* config = data.deviceConfig;
+
+        // v^{n+1/2} and u^{n+1/2}, set aside while vxyzu holds the predicted values used by the second force evaluation
+        auto* vxyzuHalf = new float[n * 4];
+
+        assert(omp_target_is_present(xyzh, omp_get_default_device()) && "xyzh not mapped on device");
+        assert(omp_target_is_present(config, omp_get_default_device()) && "config not mapped on device");
+
+        #pragma omp target data map(tofrom: vxyzu[0:n * 4]) \
+                                map(from: density[0:n], accs[0:n * 3], energies[0:n]) \
+                                map(alloc: omega[0:n], vxyzuHalf[0:n * 4])
+        {
+            // a^n and du/dt^n from x^n, v^n, u^n
+            computeAccelerationAndEnergy(data);
+
+            // Kick by a half step, then drift by a full step:
+            //     v^{n+1/2} = v^n + dt/2 * a^n,    x^{n+1} = x^n + dt * v^{n+1/2}
+            // The forces depend on velocity (artificial viscosity, du/dt), so they are next evaluated at the predicted
+            // v* = v^{n+1/2} + dt/2 * a^n rather than v^{n+1/2}, as in Phantom (Price et al. 2018). Likewise for u.
+            #pragma omp target teams distribute parallel for
+            for (int i = 0; i < n; i++) {
+                for (int dim = 0; dim < 3; dim++) {
+                    float vHalf = vxyzu[4 * i + dim] + halfStep * accs[3 * i + dim];
+                    vxyzuHalf[4 * i + dim] = vHalf;
+                    vxyzu[4 * i + dim] = vHalf + halfStep * accs[3 * i + dim];
+                    xyzh[4 * i + dim] += timestep * vHalf;
+                }
+
+                float uHalf = vxyzu[4 * i + 3] + halfStep * energies[i];
+                vxyzuHalf[4 * i + 3] = uHalf;
+                vxyzu[4 * i + 3] = uHalf + halfStep * energies[i];
+
+                xyzh[4 * i + 0] = periodicWrap(xyzh[4 * i + 0], config->boundingBox.x1, config->boundingBox.x2);
+                xyzh[4 * i + 1] = periodicWrap(xyzh[4 * i + 1], config->boundingBox.y1, config->boundingBox.y2);
+                xyzh[4 * i + 2] = periodicWrap(xyzh[4 * i + 2], config->boundingBox.z1, config->boundingBox.z2);
+            }
+
+            // The tree is built on the host, so it needs the drifted positions
+            data.pullGPU();
+
+            // a^{n+1} and du/dt^{n+1} from x^{n+1}, v*, u*
+            computeAccelerationAndEnergy(data);
+
+            // Kick by the remaining half step: v^{n+1} = v^{n+1/2} + dt/2 * a^{n+1}
+            #pragma omp target teams distribute parallel for
+            for (int i = 0; i < n; i++) {
+                for (int dim = 0; dim < 3; dim++) {
+                    vxyzu[4 * i + dim] = vxyzuHalf[4 * i + dim] + halfStep * accs[3 * i + dim];
+                }
+                vxyzu[4 * i + 3] = vxyzuHalf[4 * i + 3] + halfStep * energies[i];
+            }
+        }
+
+        delete[] vxyzuHalf;
+        data.time += timestep;
+    }
+}

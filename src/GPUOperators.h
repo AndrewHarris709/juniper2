@@ -13,6 +13,8 @@
 #pragma omp begin declare target
 namespace GPU {
     constexpr float NORM = 1 / M_PI;
+    constexpr float KERNEL_RADIUS = 3.0;
+    constexpr float HFACT = 1.2;
     constexpr int MAX_NEIGHBOURS = 40000;
 
     struct NeighbourList {

@@ -112,7 +112,7 @@ namespace GPU {
             TreeNode* nextNode = &tree->contents[nextNodeIndex];
 
             float distance = distBetweenNodes(config, tree, nextNodeIndex, nodeIndex);
-            float targetBounds = nextNode->size + targetNode->size + (2 * std::max(targetNode->hmax, partMax));
+            float targetBounds = nextNode->size + targetNode->size + (KERNEL_RADIUS * std::max(targetNode->hmax, partMax));
 
             if (distance * distance < targetBounds * targetBounds) {
                 if (nextNode->leftChild == -1) {
@@ -140,7 +140,7 @@ namespace GPU {
             NeighbourList neighbours;
             getNeighbours(tree, nodeIndex, config, newH, &neighbours);
 
-            float density = config->mass * std::pow(1.2 / newH, 3);
+            float density = config->mass * std::pow(HFACT / newH, 3);
             float grad = -newH / (3 * density);
 
             float density_sum = 0;

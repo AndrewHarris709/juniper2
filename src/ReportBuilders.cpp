@@ -58,7 +58,7 @@ bool ReportBuilders::buildNeighboursReport(SimData& data, std::string& name) {
         ss << i << ",true";
         for (int j = 0; j < data.getParticleCount(); j++) {
             SimConfigDevice* config = data.getOffloadConfig();
-            if (GPU::distBetween(config, data.x(i), data.x(j), data.y(i), data.y(j), data.z(i), data.z(j)) / data.h(i) < 2) {
+            if (GPU::distBetween(config, data.x(i), data.x(j), data.y(i), data.y(j), data.z(i), data.z(j)) / data.h(i) < GPU::KERNEL_RADIUS) {
                 ss << "," << j;
             }
         }

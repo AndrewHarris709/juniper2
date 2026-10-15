@@ -8,12 +8,13 @@
 #include "SimConfig.h"
 #include "Tree.h"
 
-#pragma omp begin declare target
+class SimData; // forward declare to avoid circular imports with SimData.h
+
 namespace LeapfrogIntegrator {
 
     constexpr float GAMMA = 5.0 / 3;
 
-
+#pragma omp begin declare target
     float densityForParticle(int partIndex, int nodeIndex, float *xyzh, TreeData *tree, SimConfigDevice *config);
     float omegaForParticle(int partIndex, int nodeIndex, float density, float *xyzh, TreeData *tree, SimConfigDevice *config);
     junipermath::Point3f accForParticle(int partIndex, int nodeIndex, float *xyzh, float *vxyzu, float *density, float *omega, TreeData* tree, SimConfigDevice* config);
@@ -24,8 +25,9 @@ namespace LeapfrogIntegrator {
     junipermath::Point3f velocityDiffBetween(int partIndex, int otherPart, float *vxyzu);
     junipermath::Point3f norm(junipermath::Point3f p);
     float dot(junipermath::Point3f p1, junipermath::Point3f p2);
-
-};
 #pragma omp end declare target
 
+    void step(SimData& data, float timestep);
+
+};
 #endif //LEAPFROGINTEGRATOR_H

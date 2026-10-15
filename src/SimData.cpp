@@ -8,8 +8,10 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <omp.h>
 #include <ranges>
 #include <vector>
@@ -18,7 +20,6 @@
 #include "GPUOperators.h"
 #include "ReportBuilders.h"
 
-constexpr float HFACT = 1.2;
 constexpr int MAX_DENSITY_ITERATIONS = 10;
 constexpr int THREAD_LIMIT = 512;
 
@@ -117,7 +118,7 @@ SimData::SimData(const std::string& filename, const std::string& configname): co
 
     density = new float[particleCount]();
     omega = new float[particleCount]();
-    accs = new float[particleCount]();
+    accs = new float[particleCount * 3]();
     energies = new float[particleCount]();
     this->particleCount = particleCount;
 
@@ -147,16 +148,19 @@ void SimData::toCSV(const std::string &filename) {
         std::cerr << "Error writing to file " << filename << std::endl;
     }
 
-    file << "i,x,y,z,h,vx,vy,vz,u,fx,fy,fz" << std::endl;
+    // Enough digits to round-trip every float exactly; the default of 6 loses the changes made within a single step
+    file << std::setprecision(std::numeric_limits<float>::max_digits10);
+    file << "i,x,y,z,h,vx,vy,vz,u,fx,fy,fz,rho,ax,ay,az,dudt" << std::endl;
 
     for (int i = 0; i < getParticleCount(); i++) {
         file << i << ",";
         file << xyzh[4*i] << "," << xyzh[4*i+1] << "," << xyzh[4*i+2] << "," << xyzh[4*i+3] << ",";
         file << vxyzu[4*i] << "," << vxyzu[4*i+1] << "," << vxyzu[4*i+2] << "," << vxyzu[4*i+3] << ",";
         if (getParticleCount() > 0) {
-            file << fxyz[3*i] << "," << fxyz[3*i+1] << "," << fxyz[3*i+2];
+            file << fxyz[3*i] << "," << fxyz[3*i+1] << "," << fxyz[3*i+2] << ",";
         }
-        file << std::endl;
+        file << density[i] << "," << accs[3*i] << "," << accs[3*i+1] << "," << accs[3*i+2] << "," << energies[i];
+        file << '\n';
     }
 
     file.close();
