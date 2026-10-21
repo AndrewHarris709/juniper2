@@ -125,11 +125,11 @@ SimData::SimData(const std::string& filename, const std::string& configname): co
     file.close();
 
     this->deviceConfig = getOffloadConfig();
-    #pragma omp target enter data map(to: xyzh[0:this->getParticleCount()*4], *this->deviceConfig)
+    #pragma omp target enter data map(to: xyzh[0:this->getParticleCount()*4], this->deviceConfig[0:1])
 }
 
 SimData::~SimData() {
-    #pragma omp target exit data map(release: xyzh[0:this->getParticleCount()*4], *this->deviceConfig)
+    #pragma omp target exit data map(release: xyzh[0:this->getParticleCount()*4], this->deviceConfig[0:1])
 
     delete[] xyzh;
     delete[] vxyzu;

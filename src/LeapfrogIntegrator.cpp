@@ -13,7 +13,7 @@
 
 namespace LeapfrogIntegrator {
 
-#pragma omp begin declare target
+#pragma omp declare target
     float densityForParticle(int partIndex, int nodeIndex, float *xyzh, TreeData *tree, SimConfigDevice *config) {
         float density = 0.0f;
 

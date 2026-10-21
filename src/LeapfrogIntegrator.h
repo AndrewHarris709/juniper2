@@ -14,7 +14,7 @@ namespace LeapfrogIntegrator {
 
     constexpr float GAMMA = 5.0 / 3;
 
-#pragma omp begin declare target
+#pragma omp declare target
     float densityForParticle(int partIndex, int nodeIndex, float *xyzh, TreeData *tree, SimConfigDevice *config);
     float omegaForParticle(int partIndex, int nodeIndex, float density, float *xyzh, TreeData *tree, SimConfigDevice *config);
     junipermath::Point3f accForParticle(int partIndex, int nodeIndex, float *xyzh, float *vxyzu, float *density, float *omega, TreeData* tree, SimConfigDevice* config);

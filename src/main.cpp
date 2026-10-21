@@ -1,7 +1,7 @@
 #include <iostream>
 #include <chrono>
+#include <cstdio>
 #include <filesystem>
-#include <format>
 #include <omp.h>
 
 #include "LeapfrogIntegrator.h"
@@ -35,7 +35,9 @@ int main()
     for (int stepIndex = 1; stepIndex <= STEP_COUNT; stepIndex++) {
         LeapfrogIntegrator::step(simData, TIMESTEP);
 
-        std::string filename = std::format(".//output//kh_{:05d}.csv", stepIndex);
+        char filenameBuffer[64];
+        std::snprintf(filenameBuffer, sizeof(filenameBuffer), ".//output//kh_%05d.csv", stepIndex);
+        std::string filename = filenameBuffer;
         simData.toCSV(filename);
         std::cout << "    Step " << stepIndex << "/" << STEP_COUNT << " (t = " << simData.time << "), wrote " << filename << std::endl;
     }

@@ -6,7 +6,7 @@
 #include "SimConfig.h"
 #include "Tree.h"
 
-#pragma omp begin declare target
+#pragma omp declare target
 namespace GPU {
     constexpr int MAX_STACK_DEPTH = 64;
 
