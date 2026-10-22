@@ -211,8 +211,10 @@ namespace LeapfrogIntegrator {
         Tree tree(data.getParticleCount());
         tree.build(data);
 
-        TreeData* td = tree.data;
+        TreeNode* contents = tree.data->contents;
+        int* mapping = tree.data->mapping;
         const int nodeCount = tree.getNodeCount();
+        const int partCount = tree.data->partCount;
         float* xyzh = data.xyzh;
         float* vxyzu = data.vxyzu;
         float* density = data.density;
@@ -223,42 +225,42 @@ namespace LeapfrogIntegrator {
 
         // The acceleration of a particle depends on the density & omega of its neighbours, so these must be complete
         // for every particle (hence a separate kernel) before any acceleration is computed.
-        #pragma omp target teams distribute parallel for  map(to: td->nodeCount, td->partCount) \
-                                                          map(to: td->contents[0:td->nodeCount]) \
-                                                          map(to: td->mapping[0:td->partCount]) \
+        #pragma omp target teams distribute parallel for  map(to: contents[0:nodeCount]) \
+                                                          map(to: mapping[0:partCount]) \
                                                           thread_limit(THREAD_LIMIT)
         for (int nodeIndex = 0; nodeIndex < nodeCount; nodeIndex++) {
-            if (td->contents[nodeIndex].leftChild != -1) {
+            if (contents[nodeIndex].leftChild != -1) {
                 // non-leaf node
                 continue;
             }
 
-            NodeRange partIndices = GPU::getPartsFromNode(td, nodeIndex);
+            TreeData td{contents, mapping, nodeCount, partCount};
+            NodeRange partIndices = GPU::getPartsFromNode(&td, nodeIndex);
             for (int i = 0; i < partIndices.size; i++) {
                 int partIndex = partIndices.data[i];
-                density[partIndex] = densityForParticle(partIndex, nodeIndex, xyzh, td, config);
-                omega[partIndex] = omegaForParticle(partIndex, nodeIndex, density[partIndex], xyzh, td, config);
+                density[partIndex] = densityForParticle(partIndex, nodeIndex, xyzh, &td, config);
+                omega[partIndex] = omegaForParticle(partIndex, nodeIndex, density[partIndex], xyzh, &td, config);
             }
         }
 
-        #pragma omp target teams distribute parallel for  map(to: td->nodeCount, td->partCount) \
-                                                          map(to: td->contents[0:td->nodeCount]) \
-                                                          map(to: td->mapping[0:td->partCount]) \
+        #pragma omp target teams distribute parallel for  map(to: contents[0:nodeCount]) \
+                                                          map(to: mapping[0:partCount]) \
                                                           thread_limit(THREAD_LIMIT)
         for (int nodeIndex = 0; nodeIndex < nodeCount; nodeIndex++) {
-            if (td->contents[nodeIndex].leftChild != -1) {
+            if (contents[nodeIndex].leftChild != -1) {
                 // non-leaf node
                 continue;
             }
 
-            NodeRange partIndices = GPU::getPartsFromNode(td, nodeIndex);
+            TreeData td{contents, mapping, nodeCount, partCount};
+            NodeRange partIndices = GPU::getPartsFromNode(&td, nodeIndex);
             for (int i = 0; i < partIndices.size; i++) {
                 int partIndex = partIndices.data[i];
-                junipermath::Point3f acc = accForParticle(partIndex, nodeIndex, xyzh, vxyzu, density, omega, td, config);
+                junipermath::Point3f acc = accForParticle(partIndex, nodeIndex, xyzh, vxyzu, density, omega, &td, config);
                 accs[3 * partIndex + 0] = acc.x;
                 accs[3 * partIndex + 1] = acc.y;
                 accs[3 * partIndex + 2] = acc.z;
-                energies[partIndex] = energyChangeForParticle(partIndex, nodeIndex, xyzh, vxyzu, density, omega, td, config);
+                energies[partIndex] = energyChangeForParticle(partIndex, nodeIndex, xyzh, vxyzu, density, omega, &td, config);
             }
         }
     }

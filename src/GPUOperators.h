@@ -10,7 +10,7 @@
 #include "SimConfig.h"
 #include "Tree.h"
 
-#pragma omp begin declare target
+#pragma omp declare target
 namespace GPU {
     constexpr float NORM = 1 / M_PI;
     constexpr float KERNEL_RADIUS = 2.0;

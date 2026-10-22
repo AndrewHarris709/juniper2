@@ -98,23 +98,29 @@ bool ReportBuilders::buildAccelerationEnergyReport(SimData& data, std::string& n
         }
     }
 
-    #pragma omp target teams distribute parallel for  map(to: vxyzu[0:data.getParticleCount() * 4]) \
-                                                      map(tofrom: accs[0:data.getParticleCount()], energy[0:data.getParticleCount()]) \
-                                                      map(to: density[0:data.getParticleCount()], omega[0:data.getParticleCount()]) \
-                                                      map(to: td->nodeCount, td->partCount) \
-                                                      map(to: td->contents[0:td->nodeCount]) \
-                                                      map(to: td->mapping[0:td->partCount])
+    const int particleCount = data.getParticleCount();
+    TreeNode* contents = td->contents;
+    int* mapping = td->mapping;
+    const int nodeCount = td->nodeCount;
+    const int partCount = td->partCount;
+
+    #pragma omp target teams distribute parallel for  map(to: vxyzu[0:particleCount * 4]) \
+                                                      map(tofrom: accs[0:particleCount], energy[0:particleCount]) \
+                                                      map(to: density[0:particleCount], omega[0:particleCount]) \
+                                                      map(to: contents[0:nodeCount]) \
+                                                      map(to: mapping[0:partCount])
     for (int nodeIndex = 0; nodeIndex < td->nodeCount; nodeIndex++) {
         if (td->contents[nodeIndex].leftChild != -1) {
             // non-leaf node
             continue;
         }
 
-        NodeRange partIndices = GPU::getPartsFromNode(td, nodeIndex);
+        TreeData deviceTree{contents, mapping, nodeCount, partCount};
+        NodeRange partIndices = GPU::getPartsFromNode(&deviceTree, nodeIndex);
         for (int i = 0; i < partIndices.size; i++) {
             int partIndex = partIndices.data[i];
-            accs[partIndex] = LeapfrogIntegrator::accForParticle(partIndex, nodeIndex, xyzh, vxyzu, density, omega, td, config);
-            energy[partIndex] = LeapfrogIntegrator::energyChangeForParticle(partIndex, nodeIndex, xyzh, vxyzu, density, omega, td, config);
+            accs[partIndex] = LeapfrogIntegrator::accForParticle(partIndex, nodeIndex, xyzh, vxyzu, density, omega, &deviceTree, config);
+            energy[partIndex] = LeapfrogIntegrator::energyChangeForParticle(partIndex, nodeIndex, xyzh, vxyzu, density, omega, &deviceTree, config);
         }
     }
 

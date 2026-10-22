@@ -36,12 +36,16 @@ void SimData::densityIterate() {
     TreeData* td = tree->data;
     SimConfigDevice* deviceConfig = this->deviceConfig;
 
+    TreeNode* contents = tree->data->contents;
+    int* mapping = tree->data->mapping;
+    int nodeCount = tree->data->nodeCount;
+    int partCount = tree->data->partCount;
+
     assert(omp_target_is_present(xyzh, omp_get_default_device()) && "xyzh not mapped on device");
     assert(omp_target_is_present(deviceConfig, omp_get_default_device()) && "config not mapped on device");
 
-    #pragma omp target teams distribute parallel for  map(to: td->nodeCount, td->partCount) \
-                                                      map(to: td->contents[0:td->nodeCount]) \
-                                                      map(to: td->mapping[0:td->partCount]) \
+    #pragma omp target teams distribute parallel for  map(to: contents[0:nodeCount]) \
+                                                      map(to: mapping[0:partCount]) \
                                                       thread_limit(THREAD_LIMIT)
     for (int nodeIndex = 0; nodeIndex < td->nodeCount; nodeIndex++) {
         if (td->contents[nodeIndex].leftChild != -1) {
@@ -49,10 +53,11 @@ void SimData::densityIterate() {
             continue;
         }
 
-        NodeRange partIndices = GPU::getPartsFromNode(td, nodeIndex);
+        TreeData td{contents, mapping, nodeCount, partCount};
+        NodeRange partIndices = GPU::getPartsFromNode(&td, nodeIndex);
         for (int i = 0; i < partIndices.size; i++) {
             int partIndex = partIndices.data[i];
-            float result = GPU::densityIterateAtParticle(xyzh, td, partIndex, nodeIndex, deviceConfig);
+            float result = GPU::densityIterateAtParticle(xyzh, &td, partIndex, nodeIndex, deviceConfig);
             xyzh[4 * partIndex + 3] = result;
         }
     }
