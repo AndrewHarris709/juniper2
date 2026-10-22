@@ -109,8 +109,8 @@ bool ReportBuilders::buildAccelerationEnergyReport(SimData& data, std::string& n
                                                       map(to: density[0:particleCount], omega[0:particleCount]) \
                                                       map(to: contents[0:nodeCount]) \
                                                       map(to: mapping[0:partCount])
-    for (int nodeIndex = 0; nodeIndex < td->nodeCount; nodeIndex++) {
-        if (td->contents[nodeIndex].leftChild != -1) {
+    for (int nodeIndex = 0; nodeIndex < nodeCount; nodeIndex++) {
+        if (contents[nodeIndex].leftChild != -1) {
             // non-leaf node
             continue;
         }

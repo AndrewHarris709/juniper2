@@ -33,7 +33,6 @@ void SimData::densityIterate() {
     std::cout << "Tree built with " << tree->getNodeCount() << "nodes." << std::endl;
 
     float* xyzh = this->xyzh;
-    TreeData* td = tree->data;
     SimConfigDevice* deviceConfig = this->deviceConfig;
 
     TreeNode* contents = tree->data->contents;
@@ -47,8 +46,8 @@ void SimData::densityIterate() {
     #pragma omp target teams distribute parallel for  map(to: contents[0:nodeCount]) \
                                                       map(to: mapping[0:partCount]) \
                                                       thread_limit(THREAD_LIMIT)
-    for (int nodeIndex = 0; nodeIndex < td->nodeCount; nodeIndex++) {
-        if (td->contents[nodeIndex].leftChild != -1) {
+    for (int nodeIndex = 0; nodeIndex < nodeCount; nodeIndex++) {
+        if (contents[nodeIndex].leftChild != -1) {
             // non-leaf node
             continue;
         }
