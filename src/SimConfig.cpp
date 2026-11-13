@@ -2,6 +2,7 @@
 // Created by Andrew on 2026-07-15.
 //
 
+#define TOML_IMPLEMENTATION
 #include "toml.hpp"
 #include "SimConfig.h"
 

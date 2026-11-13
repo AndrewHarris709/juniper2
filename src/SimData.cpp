@@ -100,7 +100,10 @@ SimData::SimData(const std::string& filename, const std::string& configname): co
     vxyzu   = new float[particleCount * 4];
     fxyz    = new float[particleCount * 3];
     int rowIndex = 0;
-    for (const auto& row : data | std::views::drop(1)) {
+    // Skip the header row. (Not using std::views::drop: nvc++'s EDG front end can't parse the
+    // range-adaptor closure machinery in GCC 12's libstdc++ <ranges>.)
+    for (auto rowIt = std::next(data.begin()); rowIt != data.end(); ++rowIt) {
+        const auto& row = *rowIt;
 
         int i = 0;
         for (const auto& cell : row) {

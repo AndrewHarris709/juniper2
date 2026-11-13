@@ -15,7 +15,7 @@ namespace GPU {
     constexpr float NORM = 1 / M_PI;
     constexpr float KERNEL_RADIUS = 2.0;
     constexpr float HFACT = 1.2;
-    constexpr int MAX_NEIGHBOURS = 40000;
+    constexpr int MAX_NEIGHBOURS = 2000;
 
     struct NeighbourList {
         int indices[MAX_NEIGHBOURS];

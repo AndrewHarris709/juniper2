@@ -1,0 +1,17 @@
+compilers:
+  - description: NVIDIA HPC C++ Compiler
+    match-compiler-exe: ".*/nvc\\+\\+"
+    match-language: CPP
+    include-dirs:
+      - "${compiler-exe-dir}/../include"
+      - "${compiler-exe-dir}/../compilers/include"
+    defines-text: |
+      #define __NVCOMPILER 1
+  - description: NVIDIA HPC C Compiler
+    match-compiler-exe: ".*/nvc"
+    match-language: C
+    include-dirs:
+      - "${compiler-exe-dir}/../include"
+      - "${compiler-exe-dir}/../compilers/include"
+    defines-text: |
+      #define __NVCOMPILER 1

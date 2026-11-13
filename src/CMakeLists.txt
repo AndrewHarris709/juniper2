@@ -1,11 +1,4 @@
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_LINKER_TYPE LLD)
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "12.3")
-        message(FATAL_ERROR "This project requires GCC 12.3 or newer. (found GCC ${CMAKE_CXX_COMPILER_VERSION})")
-    endif()
-endif()
 
 add_library(JuniperSRC STATIC kernel.cpp kernel.h
                               SimData.cpp SimData.h
@@ -22,8 +15,8 @@ message(STATUS "OpenMP found: ${OpenMP_FOUND}")
 message(STATUS "OpenMP version: ${OpenMP_CXX_VERSION}")
 message(STATUS "OpenMP flags: ${OpenMP_CXX_FLAGS}")
 
-target_link_libraries(JuniperSRC PUBLIC OpenMP::OpenMP_CXX)
-target_compile_options(JuniperSRC PUBLIC -fopenmp -foffload=nvptx-none -fno-fast-math -ffp-contract=off -fno-associative-math -fcf-protection=none -fno-stack-protector -foffload-options=nvptx-none="-lm")
-target_link_options(JuniperSRC PUBLIC -fopenmp -foffload=nvptx-none -fno-fast-math -ffp-contract=off -fno-associative-math -fcf-protection=none -fno-stack-protector -foffload-options=nvptx-none="-lm")
+set(JUNIPER_GPU_ARCH "ccnative" CACHE STRING "nvc++ -gpu target (e.g. cc86)")
+target_compile_options(JuniperSRC PUBLIC -mp=gpu -DTOML_HEADER_ONLY=0 -gpu=${JUNIPER_GPU_ARCH},nofma -Kieee -Mnofma -Minfo=mp -noswitcherror)
+target_link_options(JuniperSRC PUBLIC -mp=gpu -DTOML_HEADER_ONLY=0 -gpu=${JUNIPER_GPU_ARCH} -noswitcherror)
 
 target_include_directories(JuniperSRC PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

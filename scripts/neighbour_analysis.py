@@ -2,8 +2,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import csv
 
+ANALYSIS_LOCATION = "./output//kh_00000_neighbours.jrep"
+
 rows = []
-with open('./output//hydro32_neighbours.jrep') as f:
+with open(ANALYSIS_LOCATION) as f:
     for row in csv.reader(f):
         d = {'index': int(row[0]), 'keyword': row[1], 'values': set([int(x) for x in row[2:]])}
         rows.append(d)
@@ -20,7 +22,7 @@ fig, ax = plt.subplots()
 
 ax.stackplot(df.index, df['matching'], df['missing'], df['extra'], labels=["Matching Neighbours", "Missing Neighbours", "Extra Tree Neighbours"])
 
-ax.set_title("Neighbour Analysis for hydro32_00020")
+ax.set_title(f"{ANALYSIS_LOCATION}")
 ax.set_xlabel("Particle Index (sorted by increasing neighbours)")
 ax.set_ylabel("# of Neighbours")
 ax.legend(loc="upper left")
