@@ -10,7 +10,7 @@ float Kernel::getRadius() const
 
 float Kernel::valueAt(const float q) const
 {
-    float aq = std::abs(q);
+    float aq = fabsf(q);
 
     if (aq >= 2) 
     {
@@ -26,7 +26,7 @@ float Kernel::valueAt(const float q) const
 }
 
 float Kernel::gradientAt(const float q) const {
-    float aq = std::abs(q);
+    float aq = fabsf(q);
 
     if (aq >= 2) {
         return 0;
